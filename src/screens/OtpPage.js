@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  SafeAreaView,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome5';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -111,8 +112,9 @@ const OTPScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
       
       <KeyboardAvoidingView 
         style={styles.keyboardAvoidingView}
@@ -205,28 +207,28 @@ const styles = StyleSheet.create({
     height: hp('55%'),
   },
   welcomeText: {
-    fontFamily: 'Work Sans', // Make sure Work Sans is linked correctly
+    fontFamily: 'Poppins', // Make sure Poppins is linked correctly
     fontWeight: '900', // Equivalent to Black
     fontSize: wp('8%'), // Approximate 32px, responsive
-    lineHeight: wp('8%'), // 100% of font size
+   
     letterSpacing: 0, // 0% letter spacing
     textAlign: 'center',
     color: '#222', // or your preferred color
   },
   healtoText: {
-    fontFamily: 'Work Sans', // Make sure this font is linked correctly
+    fontFamily: 'Poppins', // Make sure this font is linked correctly
     fontWeight: '900', // equivalent to Black
     fontSize: wp('8%'), // responsive approximation of 32px
-    lineHeight: hp('4%'), // adjust as needed, roughly 100%
-    letterSpacing: 0,
+   
+   
     textAlign: 'center',
     color: '#1977F3',
   },
   subText: {
-    fontFamily: 'Work Sans', // Make sure Work Sans is linked correctly
+    fontFamily: 'Poppins', // Make sure Poppins is linked correctly
     fontWeight: '500', // Medium weight
     fontSize: wp('3.5%'), // Approx 14px responsive
-    lineHeight: wp('3.5%'), // 100% line-height
+   
     letterSpacing: 0, // 0px
     textAlign: 'center',
     color: '#444',
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonText: {
-    fontFamily: 'Work Sans', // Make sure Work Sans Bold is linked in your project
+    fontFamily: 'Poppins', // Make sure Poppins Bold is linked in your project
     fontWeight: '700', // Bold
     fontSize: wp('3.5%'), // Approx 14px, responsive
     lineHeight: wp('3.5%'), // 100% line-height

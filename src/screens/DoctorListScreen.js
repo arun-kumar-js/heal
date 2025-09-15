@@ -1,43 +1,150 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
   Image,
   TextInput,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   StatusBar,
   ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
-import axios from 'axios';
+import { useDispatch, useSelector } from 'react-redux';
+import { setSearchQuery, clearFilters, fetchDoctors } from '../store/slices/doctorsSlice';
+import { 
+  selectFilteredDoctors, 
+  selectDoctorsLoading, 
+  selectDoctorsError, 
+  selectSelectedCategory,
+  selectSearchQuery 
+} from '../store/selectors/doctorsSelectors';
+import BackButton from '../components/BackButton';
 
 const IMAGE_BASE_URL = 'https://spiderdesk.asia/healto/';
 
 const DoctorListScreen = ({ navigation, route }) => {
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const dispatch = useDispatch();
+  const doctors = useSelector(selectFilteredDoctors);
+  const loading = useSelector(selectDoctorsLoading);
+  const error = useSelector(selectDoctorsError);
+  const selectedCategory = useSelector(selectSelectedCategory);
+  const searchQuery = useSelector(selectSearchQuery);
+  const [imageLoadingStates, setImageLoadingStates] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
-    // Use doctors passed from Home screen
-    if (route.params?.doctors) {
-      console.log('Using doctors passed from Home screen:', route.params.doctors);
-      setDoctors(route.params.doctors);
+    // Fetch doctors data when component mounts
+    console.log('DoctorListScreen: Dispatching fetchDoctors...');
+    dispatch(fetchDoctors());
+  }, [dispatch]);
+
+  useEffect(() => {
+    // Preload images for better performance when doctors change
+    if (doctors && doctors.length > 0) {
+      preloadImages(doctors);
     }
-  }, [route.params?.doctors]);
+  }, [doctors]);
+
+  // Preload images for better performance - only preload first 6 images
+  const preloadImages = useCallback((doctorsList) => {
+    if (!doctorsList || !Array.isArray(doctorsList)) {
+      console.log('preloadImages: doctorsList is not a valid array:', doctorsList);
+      return;
+    }
+    const doctorsToPreload = doctorsList.slice(0, 6); // Only preload first 6
+    doctorsToPreload.forEach(doctor => {
+      const imageSource = getDoctorImage(doctor);
+      if (imageSource.uri) {
+        Image.prefetch(imageSource.uri).catch(error => {
+          console.log('Failed to preload image for doctor:', doctor.name, error);
+        });
+      }
+    });
+  }, []);
 console.log(doctors)
   
+  // Normalize specialty names to handle variations
+  const normalizeSpecialtyName = (name) => {
+    if (!name) return '';
+    
+    const normalized = name.trim().toLowerCase();
+    
+    // Handle common variations
+    const variations = {
+      'cardiology': 'Cardiology',
+      'cardiac': 'Cardiology',
+      'heart': 'Cardiology',
+      'neurology': 'Neurology',
+      'brain': 'Neurology',
+      'neural': 'Neurology',
+      'orthopedics': 'Orthopedics',
+      'orthopedic': 'Orthopedics',
+      'bone': 'Orthopedics',
+      'pediatrics': 'Pediatrics',
+      'pediatric': 'Pediatrics',
+      'child': 'Pediatrics',
+      'dermatology': 'Dermatology',
+      'skin': 'Dermatology',
+      'gynecology': 'Gynecology',
+      'gynecological': 'Gynecology',
+      'women': 'Gynecology',
+      'ophthalmology': 'Ophthalmology',
+      'eye': 'Ophthalmology',
+      'vision': 'Ophthalmology',
+      'ent': 'ENT',
+      'ear nose throat': 'ENT',
+      'psychiatry': 'Psychiatry',
+      'mental': 'Psychiatry',
+      'psychology': 'Psychiatry'
+    };
+    
+    return variations[normalized] || name.trim();
+  };
 
-  const filteredDoctors = doctors.filter(doctor =>
-    doctor.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const getDoctorSpecialty = (doctor) => {
+    // First try to get specialization name from nested specialization object
+    if (doctor.specialization && doctor.specialization.name) {
+      return normalizeSpecialtyName(doctor.specialization.name);
+    }
+    
+    // Map specialization_id to actual specialty names as fallback
+    const specialtyMap = {
+      1: 'Cardiology',
+      2: 'Orthopedics', 
+      3: 'Pediatrics',
+      4: 'Dermatology',
+      5: 'Neurology',
+      6: 'General Medicine',
+      7: 'Gynecology',
+      8: 'Ophthalmology',
+      9: 'ENT',
+      10: 'Psychiatry'
+    };
+    
+    // Use specialization_id if available, otherwise fallback to type
+    if (doctor.specialization_id) {
+      return specialtyMap[doctor.specialization_id] || 'General Medicine';
+    }
+    
+    // Fallback to type-based mapping
+    const typeMap = {
+      'hospital': 'Cardiology',
+      'clinic': 'General Medicine',
+      'multispeciality': 'Multi Specialty'
+    };
+    return typeMap[doctor.type] || 'General Medicine';
+  };
+
+  // Use filtered doctors from Redux selector with safety check
+  const filteredDoctors = doctors || [];
 
   const renderStars = (rating) => {
     const numRating = parseFloat(rating) ;
@@ -67,130 +174,130 @@ console.log(doctors)
     return stars;
   };
 
-  const getDoctorSpecialty = (doctor) => {
-    // Map specialization_id to actual specialty names
-    const specialtyMap = {
-      1: 'Cardiology',
-      2: 'Orthopedics', 
-      3: 'Pediatrics',
-      4: 'Dermatology',
-      5: 'Neurology',
-      6: 'General Medicine',
-      7: 'Gynecology',
-      8: 'Ophthalmology',
-      9: 'ENT',
-      10: 'Psychiatry'
-    };
-    
-    // Use specialization_id if available, otherwise fallback to type
-    if (doctor.specialization_id) {
-      return specialtyMap[doctor.specialization_id] || 'General Medicine';
-    }
-    
-    // Fallback to type-based mapping
-    const typeMap = {
-      'hospital': 'Cardiology',
-      'clinic': 'General Medicine',
-      'multispeciality': 'Multi Specialty'
-    };
-    return typeMap[doctor.type] || 'General Medicine';
-  };
-
-  const getDoctorImage = (doctor) => {
-    console.log('Doctor data for image:', doctor);
-    
+  // Memoized image source to prevent unnecessary re-renders
+  const getDoctorImage = useCallback((doctor) => {
     // Check for various possible image fields with Healto base URL
-    if (doctor.profile_image) {
-      console.log('Using profile_image:', doctor.profile_image);
-      return { uri: `${IMAGE_BASE_URL}${doctor.profile_image}` };
+    const imageFields = [
+      'profile_image',
+      'image', 
+      'avatar',
+      'photo',
+      'profile_picture',
+      'doctor_image'
+    ];
+    
+    for (const field of imageFields) {
+      if (doctor[field]) {
+        return { 
+          uri: `${IMAGE_BASE_URL}${doctor[field]}`,
+          cache: 'force-cache', // Enable caching
+        };
+      }
     }
     
-    if (doctor.image) {
-      console.log('Using image:', doctor.image);
-      return { uri: `${IMAGE_BASE_URL}${doctor.image}` };
-    }
-    
-    if (doctor.avatar) {
-      console.log('Using avatar:', doctor.avatar);
-      return { uri: `${IMAGE_BASE_URL}${doctor.avatar}` };
-    }
-    
-    if (doctor.photo) {
-      console.log('Using photo:', doctor.photo);
-      return { uri: `${IMAGE_BASE_URL}${doctor.photo}` };
-    }
-    
-    if (doctor.profile_picture) {
-      console.log('Using profile_picture:', doctor.profile_picture);
-      return { uri: `${IMAGE_BASE_URL}${doctor.profile_picture}` };
-    }
-    
-    if (doctor.doctor_image) {
-      console.log('Using doctor_image:', doctor.doctor_image);
-      return { uri: `${IMAGE_BASE_URL}${doctor.doctor_image}` };
-    }
-    
-    // Fallback to random user images if no profile image
-    const randomImage = `https://randomuser.me/api/portraits/${doctor.gender === 'Female' ? 'women' : 'men'}/${Math.floor(Math.random() * 50) + 1}.jpg`;
-    console.log('Using fallback image:', randomImage);
-    console.log('Doctor gender:', doctor.gender);
-    
-    // Test with a simple working image first
-    console.log('Testing with simple image URL');
-    return { uri: 'https://picsum.photos/300/400' };
-  };
+    // Fallback to a reliable placeholder image
+    return { 
+      uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name || 'Doctor')}&size=300&background=0D6EFD&color=fff`,
+      cache: 'force-cache',
+    };
+  }, []);
 
-  const renderDoctorCard = ({ item: doctor, index }) => (
-    <TouchableOpacity key={doctor.id} style={styles.doctorCard}>
-      <View style={styles.doctorImageContainer}>
-        <Image
-          source={getDoctorImage(doctor)}
-          style={styles.doctorImage}
-          onError={(error) => {
-            console.log('Image loading error for doctor:', doctor.name, error);
-            console.log('Image source:', getDoctorImage(doctor));
-          }}
-          onLoad={() => {
-            console.log('Image loaded successfully for doctor:', doctor.name);
-            console.log('Image source:', getDoctorImage(doctor));
-          }}
-          onLoadStart={() => {
-            console.log('Image loading started for doctor:', doctor.name);
-          }}
-        />
-         <View style={styles.cardOverlay}>
-          <View style={styles.ratingContainer}>
-            <View style={styles.starsContainer}>
-              {renderStars(doctor.rating || 4.0)}
+  // Handle image loading states
+  const handleImageLoadStart = useCallback((doctorId) => {
+    setImageLoadingStates(prev => ({ ...prev, [doctorId]: true }));
+    setImageErrors(prev => ({ ...prev, [doctorId]: false }));
+  }, []);
+
+  const handleImageLoad = useCallback((doctorId) => {
+    setImageLoadingStates(prev => ({ ...prev, [doctorId]: false }));
+  }, []);
+
+  const handleImageError = useCallback((doctorId) => {
+    setImageLoadingStates(prev => ({ ...prev, [doctorId]: false }));
+    setImageErrors(prev => ({ ...prev, [doctorId]: true }));
+  }, []);
+
+  const renderDoctorCard = ({ item: doctor, index }) => {
+    const doctorId = doctor.id.toString();
+    const isLoading = imageLoadingStates[doctorId];
+    const hasError = imageErrors[doctorId];
+    
+    const handleDoctorPress = () => {
+      navigation.navigate('DoctorAppointment', { doctor });
+    };
+    
+    return (
+      <TouchableOpacity 
+        key={doctor.id} 
+        style={styles.doctorCard}
+        onPress={handleDoctorPress}
+      >
+        <View style={styles.doctorImageContainer}>
+          {/* Loading indicator */}
+          {isLoading && (
+            <View style={styles.imageLoadingContainer}>
+              <ActivityIndicator size="large" color="#0D6EFD" />
+              <Text style={styles.loadingText}>Loading...</Text>
             </View>
-            <Text style={styles.ratingText}>{(doctor.rating || 4.0).toFixed(1)}</Text>
-          </View>
+          )}
           
-          <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctor.name}</Text>
-            <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
+          {/* Error state */}
+          {hasError && (
+            <View style={styles.imageErrorContainer}>
+              <Icon name="user-md" size={40} color="#0D6EFD" />
+              <Text style={styles.errorText}>Image unavailable</Text>
+            </View>
+          )}
+          
+          <Image
+            source={getDoctorImage(doctor)}
+            style={[
+              styles.doctorImage,
+              (isLoading || hasError) && styles.hiddenImage
+            ]}
+            onError={() => handleImageError(doctorId)}
+            onLoad={() => handleImageLoad(doctorId)}
+            onLoadStart={() => handleImageLoadStart(doctorId)}
+            resizeMode="cover"
+            // Performance optimizations
+            fadeDuration={200}
+            progressiveRenderingEnabled={true}
+            removeClippedSubviews={true}
+          />
+          
+          <View style={styles.cardOverlay}>
+            <View style={styles.ratingContainer}>
+              <View style={styles.starsContainer}>
+                {renderStars(doctor.rating || 4.0)}
+              </View>
+              <Text style={styles.ratingText}>{(doctor.rating || 4.0).toFixed(1)}</Text>
+            </View>
+            
+            <View style={styles.doctorInfo}>
+              <Text style={styles.doctorName}>{doctor.name}</Text>
+              <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      
+      <BackButton onPress={() => navigation.goBack()} />
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Icon name="arrow-left" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-        
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Lets Find Your Problem?</Text>
-          <Text style={styles.headerSubtitle}>Select the Doctor</Text>
+          <Text style={styles.headerTitle}>
+            {selectedCategory ? `${selectedCategory} Specialists` : 'Lets Find Your Problem?'}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {selectedCategory ? 'Select the Doctor' : 'Select the Doctor'}
+          </Text>
         </View>
       </View>
 
@@ -203,20 +310,63 @@ console.log(doctors)
             placeholder="Search by Doctor N..."
             placeholderTextColor="#666"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => dispatch(setSearchQuery(text))}
           />
         </View>
       </View>
 
       {/* Doctors Grid */}
-      <FlatList
-        data={filteredDoctors}
-        renderItem={renderDoctorCard}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        contentContainerStyle={{ paddingHorizontal: wp('4%'), paddingBottom: hp('2%') }}
+      <ScrollView 
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-      />
+        contentContainerStyle={styles.doctorsGridContainer}
+      >
+        {filteredDoctors.length > 0 ? (
+          <View style={styles.doctorsGrid}>
+            {filteredDoctors.map((doctor, index) => (
+              <View key={doctor.id} style={styles.doctorCardWrapper}>
+                {renderDoctorCard({ item: doctor, index })}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.noResultsContainer}>
+            <Icon name="user-md" size={60} color="#0D6EFD" />
+            <Text style={styles.noResultsTitle}>
+              {selectedCategory ? `No ${selectedCategory} specialists found` : 'No doctors found'}
+            </Text>
+            <Text style={styles.noResultsSubtitle}>
+              {selectedCategory 
+                ? `We couldn't find any ${selectedCategory.toLowerCase()} specialists matching your search.`
+                : 'Try adjusting your search criteria or browse all doctors.'
+              }
+            </Text>
+            
+            {/* Debug information */}
+            <Text style={styles.debugText}>
+              Debug: {doctors.length} total doctors, {filteredDoctors.length} filtered
+            </Text>
+            <Text style={styles.debugText}>
+              Category: {selectedCategory || 'None'}, Filter: {route.params?.categoryFilter ? 'Yes' : 'No'}
+            </Text>
+            
+            {/* Show all doctors as fallback for debugging */}
+            {doctors.length > 0 && (
+              <View style={styles.debugContainer}>
+                <Text style={styles.debugTitle}>All Available Doctors (Debug):</Text>
+                {doctors.slice(0, 3).map((doctor, index) => (
+                  <Text key={index} style={styles.debugDoctorText}>
+                    {doctor.name} - {getDoctorSpecialty(doctor)}
+                  </Text>
+                ))}
+                {doctors.length > 3 && (
+                  <Text style={styles.debugDoctorText}>... and {doctors.length - 3} more</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -275,9 +425,23 @@ const styles = StyleSheet.create({
     fontSize: wp('4%'),
     color: '#333',
   },
-  doctorCard: {
+  scrollView: {
     flex: 1,
-    margin: wp('2%'),
+  },
+  doctorsGridContainer: {
+    paddingHorizontal: wp('4%'),
+    paddingBottom: hp('2%'),
+  },
+  doctorsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  doctorCardWrapper: {
+    width: '48%',
+    marginBottom: hp('2%'),
+  },
+  doctorCard: {
     height: wp('65%'),
     borderRadius: wp('4%'),
     overflow: 'hidden',
@@ -299,6 +463,43 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
     backgroundColor: '#f0f0f0', // Fallback background color
   },
+  hiddenImage: {
+    opacity: 0,
+  },
+  imageLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    zIndex: 1,
+  },
+  loadingText: {
+    marginTop: wp('2%'),
+    fontSize: wp('3.5%'),
+    color: '#0D6EFD',
+    fontWeight: '500',
+  },
+  imageErrorContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    zIndex: 1,
+  },
+  errorText: {
+    marginTop: wp('2%'),
+    fontSize: wp('3.5%'),
+    color: '#666',
+    textAlign: 'center',
+  },
   cardOverlay: {
     position: 'absolute',
     top: 0,
@@ -317,7 +518,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp('3%'),
     paddingVertical: hp('0.8%'),
     borderRadius: wp('3%'),
-    marginTop: wp('2%'),
+    marginTop: -wp('3.8%'),
+    marginRight: -wp('3.3%'),
   },
   starsContainer: {
     flexDirection: 'row',
@@ -349,6 +551,50 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('10%'),
+    paddingHorizontal: wp('10%'),
+  },
+  noResultsTitle: {
+    fontSize: wp('5%'),
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: hp('2%'),
+    marginBottom: hp('1%'),
+  },
+  noResultsSubtitle: {
+    fontSize: wp('4%'),
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: wp('5%'),
+  },
+  debugText: {
+    fontSize: wp('3%'),
+    color: '#999',
+    textAlign: 'center',
+    marginTop: hp('1%'),
+  },
+  debugContainer: {
+    marginTop: hp('3%'),
+    padding: wp('4%'),
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+  },
+  debugTitle: {
+    fontSize: wp('4%'),
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: hp('1%'),
+  },
+  debugDoctorText: {
+    fontSize: wp('3.5%'),
+    color: '#666',
+    marginBottom: hp('0.5%'),
   },
 });
 

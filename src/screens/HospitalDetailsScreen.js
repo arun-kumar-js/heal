@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -11,6 +10,7 @@ import {
   Platform,
   ImageBackground,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -28,7 +28,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
   const hospitalData = {
     name: hospital?.name || 'Hospital',
     type: hospital?.type || 'hospital',
-    rating: hospital?.rating || '4.5',
+    rating: hospital?.rating || '0',
     info: hospital?.info || 'Hospital information not available',
     address: hospital?.address || 'Address not available',
     phone: hospital?.phone || 'Phone not available',
@@ -43,11 +43,11 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
   ];
 
   const departmentsData = [
-    { name: 'Cardiology', icon: require('../Assets/Images/heart.png'), color: '#E53935' },
-    { name: 'ENT', icon: require('../Assets/Images/brain.png'), color: '#4CAF50' },
-    { name: 'Orthopedics', icon: require('../Assets/Images/bone.png'), color: '#FF9800' },
-    { name: 'Neurology', icon: require('../Assets/Images/brain.png'), color: '#2196F3' },
-    { name: 'Gastroenterology', icon: require('../Assets/Images/heart.png'), color: '#E91E63' },
+    { name: 'Cardiology', icon: require('../Assets/Images/heart.png'), },
+    { name: 'ENT', icon: require('../Assets/Images/brain.png'), },
+    { name: 'Orthopedics', icon: require('../Assets/Images/bone.png'),  },
+    { name: 'Neurology', icon: require('../Assets/Images/brain.png'),  },
+    { name: 'Gastroenterology', icon: require('../Assets/Images/heart.png'),  },
   ];
 
   const filterData = [
@@ -117,7 +117,15 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#003784" />
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+ 
+      
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        bounces={true}
+        scrollEventThrottle={16}
+      >
         {/* Hospital Header Image */}
         <View style={styles.headerImageContainer}>
           <ImageBackground
@@ -196,20 +204,25 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
         </View>
 
         {/* Most Common Picked */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Most Common Picked</Text>
-          <Text style={styles.sectionSubtitle}>Select the Department</Text>
-          <View style={styles.departmentsGrid}>
+        <View style={styles.card}>
+          <Text style={[styles.cardTitle, { color: '#003784' }]}>Most Common Picked</Text>
+          <Text style={styles.cardSubtitle}>Select the Department</Text>
+          <View style={styles.departmentGrid}>
             {departmentsData.map((dept, index) => (
               <TouchableOpacity key={index} style={styles.departmentItem}>
-                <View style={[styles.departmentIcon, { backgroundColor: dept.color }]}>
-                  <Image source={dept.icon} style={styles.departmentIconImage} />
+                <View style={[styles.departmentIconContainer, { backgroundColor: dept.color }]}>
+                  <Image source={dept.icon} style={styles.departmentIcon} resizeMode="contain" />
                 </View>
-                <Text style={styles.departmentName}>{dept.name}</Text>
+                <Text style={styles.departmentText}>{dept.name}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.viewAllItem}>
-              <Text style={styles.viewAllText}>View All</Text>
+            <TouchableOpacity 
+              style={styles.departmentItem}
+              onPress={() => navigation.navigate('Category')}
+            >
+              <View style={[styles.departmentIconContainer, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0' }]}>
+                <Image source={require('../Assets/Images/view_all.png')} style={styles.departmentIcon} resizeMode="contain" />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -218,10 +231,10 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
         <View style={styles.sectionContainer}>
           <View style={styles.doctorsHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Top Doctors</Text>
-              <Text style={styles.sectionSubtitle}>Select the Department</Text>
+              <Text style={styles.headerTextContainer}>Top Doctors?</Text>
+              <Text style={styles.cardSubtitle}>Select the Department</Text>
             </View>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('DoctorListScreen', { doctors: doctorsData })}>
               <Text style={styles.seeAllLink}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -246,8 +259,11 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
                     source={filter.icon}
                     style={[
                       styles.filterIcon,
-                      { tintColor: selectedFilter === filter.name ? '#003784' : '#666' }
+                      {
+                        tintColor: selectedFilter === filter.name ? '#0D6EFD' : '#666'
+                      }
                     ]}
+                    resizeMode="contain"
                   />
                 )}
                 <Text
@@ -303,6 +319,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: hp('5%'),
   },
   headerImageContainer: {
     height: hp('40%'),
@@ -384,12 +403,10 @@ const styles = StyleSheet.create({
   },
   statsGradient: {
     flexDirection: 'row',
- 
-  //  paddingHorizontal: wp('4%'),
     width:'100%',
-    height:'27%',
-    borderRadius:10
- 
+    height: hp('8%'),
+    borderRadius: 10,
+    paddingVertical: hp('1%'),
   },
   statItem: {
     flex: 1,
@@ -401,7 +418,7 @@ const styles = StyleSheet.create({
     fontSize: wp('5%'),
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: hp('0.3%'),
+    marginBottom: -hp('0.3%'),
     fontFamily: PoppinsFonts.Bold,
   },
   statLabel: {
@@ -422,7 +439,7 @@ const styles = StyleSheet.create({
   aboutContainer: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: wp('5%'),
-    marginTop: -hp('23.5%'),
+    marginTop: hp('1%'),
     padding: wp('5%'),
     borderRadius: 15,
     elevation: 2,
@@ -430,6 +447,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    marginBottom: hp('2%'),
   },
   aboutTitle: {
     fontSize: wp('5%'),
@@ -461,7 +479,7 @@ const styles = StyleSheet.create({
     fontFamily: PoppinsFonts.Regular,
   },
   sectionContainer: {
-    marginVertical: hp('1%'),
+    marginVertical: hp('2%'),
     backgroundColor: '#FFFFFF',
     marginHorizontal: wp('5%'),
     padding: wp('5%'),
@@ -471,6 +489,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    minHeight: hp('30%'),
   },
   sectionTitle: {
     fontSize: wp('5%'),
@@ -489,7 +508,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    maxHeight: hp('20%'),
   },
   departmentItem: {
     width: '30%',
@@ -543,40 +561,39 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1%'),
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
-    marginRight: wp('3%'),
+    marginRight: 10,
     borderWidth: 1,
   },
   activeFilterChip: {
-    backgroundColor: 'rgba(0, 55, 132, 0.1)',
-    borderColor: '#003784',
+    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+    borderColor: '#0D6EFD',
   },
   inactiveFilterChip: {
     backgroundColor: '#FFFFFF',
     borderColor: '#E0E0E0',
   },
   filterIcon: {
-    width: 16,
-    height: 16,
-    marginRight: wp('2%'),
+    width: 17,
+    height: 20,
+    marginRight: 8,
   },
   filterText: {
     fontSize: wp('3.5%'),
     fontFamily: PoppinsFonts.Regular,
   },
   activeFilterText: {
-    color: '#003784',
+    color: '#0D6EFD',
     fontWeight: 'bold',
-    fontFamily: PoppinsFonts.Bold,
   },
   inactiveFilterText: {
     color: '#666',
-    fontFamily: PoppinsFonts.Regular,
   },
   doctorsScroll: {
     marginTop: hp('1%'),
+    height: hp('25%'),
   },
   doctorCard: {
     width: wp('35%'),
@@ -632,6 +649,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
+
   },
   viewAllDoctorContent: {
     alignItems: 'center',
@@ -641,6 +659,66 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#666',
     fontFamily: PoppinsFonts.Bold,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('5%'),
+    padding: wp('5%'),
+    marginTop: hp('1%'),
+    marginBottom: hp('2.5%'),
+    marginHorizontal: wp('5%'),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  cardTitle: {
+   
+    fontSize: wp('4.5%'),
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    backgroundColor: 'transparent',
+  },
+  cardSubtitle: {
+    fontSize: wp('3.5%'),
+    color: '#666',
+    marginTop: hp('0.2%'),
+    marginBottom: hp('2%'),
+  },
+  departmentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  departmentItem: {
+    width: '32%',
+    alignItems: 'center',
+    marginBottom: hp('2%'),
+  },
+  departmentIconContainer: {
+    width: wp('22%'),
+    height: wp('22%'),
+    borderRadius: wp('5%'),
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp('0.5%'),
+  },
+  departmentIcon: {
+    width: 75,
+    height: 75,
+  },
+  departmentText: {
+    fontSize: wp('3.5%'),
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+  },
+  headerTextContainer: {
+    fontSize: wp('5%'),
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: hp('0.5%'),
   },
 });
 

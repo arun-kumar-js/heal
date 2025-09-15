@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -12,6 +11,7 @@ import {
   Platform,
   ImageBackground,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -19,12 +19,16 @@ import {
 } from 'react-native-responsive-screen';
 import axios from 'axios';
 
-const ClinicsScreen = ({ navigation }) => {
+const ClinicsScreen = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [clinics, setClinics] = useState([]);
   const [filteredClinics, setFilteredClinics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [imageErrors, setImageErrors] = useState({});
+  
+  // Get the selected type from route params
+  const selectedType = route.params?.selectedType || 'Hospitals';
+  const selectedTypeFormatted = route.params?.selectedTypeFormatted || 'Hospitals';
 
 
   useEffect(() => {
@@ -71,17 +75,28 @@ const ClinicsScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredClinics(clinics);
-    } else {
-      const filtered = clinics.filter(clinic =>
+    let filtered = clinics;
+    
+    // Filter by selected type first
+    if (selectedType === 'Hospitals') {
+      filtered = clinics.filter(clinic => clinic.type === 'hospital');
+    } else if (selectedType === 'Clinics') {
+      filtered = clinics.filter(clinic => clinic.type === 'clinic');
+    } else if (selectedType === 'Multi Specialty\nClinic') {
+      filtered = clinics.filter(clinic => clinic.type === 'multispeciality');
+    }
+    
+    // Then filter by search query
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter(clinic =>
         clinic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         clinic.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
         clinic.type.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredClinics(filtered);
     }
-  }, [searchQuery, clinics]);
+    
+    setFilteredClinics(filtered);
+  }, [searchQuery, clinics, selectedType]);
 
   const renderStars = (rating) => {
     const numRating = parseFloat(rating);
@@ -133,21 +148,22 @@ const ClinicsScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#003784" />
+      
       
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-left" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Top Most Hospitals</Text>
-            <Text style={styles.headerSubtitle}>Select the Hospital</Text>
+            <Text style={styles.headerTitle}>Top Most {selectedTypeFormatted}</Text>
+            <Text style={styles.headerSubtitle}>Select the {selectedTypeFormatted}</Text>
           </View>
         </View>
       </View>
@@ -156,7 +172,7 @@ const ClinicsScreen = ({ navigation }) => {
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
         <TextInput
-          placeholder="Search by Hospitals"
+          placeholder={`Search by ${selectedTypeFormatted}`}
           placeholderTextColor="#888"
           style={styles.searchInput}
           value={searchQuery}
@@ -172,11 +188,11 @@ const ClinicsScreen = ({ navigation }) => {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading hospitals...</Text>
+            <Text style={styles.loadingText}>Loading {selectedTypeFormatted.toLowerCase()}...</Text>
           </View>
         ) : filteredClinics.length === 0 ? (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>No hospitals available</Text>
+            <Text style={styles.loadingText}>No {selectedTypeFormatted.toLowerCase()} available</Text>
           </View>
         ) : (
           filteredClinics.map((clinic) => (
@@ -191,16 +207,19 @@ const ClinicsScreen = ({ navigation }) => {
                 }}
               >
                 <View style={styles.imageOverlay}>
+
+
+                  
                   <View style={styles.hospitalInfo}>
                     <View style={styles.hospitalDetails}>
                       <Text style={styles.hospitalName}>{clinic.name}</Text>
                       <Text style={styles.hospitalType}>{getHospitalType(clinic)}</Text>
-                    </View>
-                    <View style={styles.ratingContainer}>
-                      <View style={styles.starsContainer}>
-                        {renderStars(clinic.rating)}
+                      <View style={styles.ratingContainer}>
+                        <View style={styles.starsContainer}>
+                          {renderStars(clinic.rating)}
+                        </View>
+                        <Text style={styles.ratingText}>{clinic.rating}</Text>
                       </View>
-                      <Text style={styles.ratingText}>{clinic.rating}</Text>
                     </View>
                   </View>
                   <View style={styles.viewButtonContainer}>
@@ -218,6 +237,7 @@ const ClinicsScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
+
     </SafeAreaView>
   );
 };
@@ -230,19 +250,28 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#003784',
     paddingTop: Platform.OS === 'ios' ? 0 : 0,
-    paddingBottom: hp('2%'),
+    paddingBottom: hp('9%'),
+    
+    position: 'relative',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    left: wp('5%'),
+    top: hp('2%'),
+    zIndex: 1000,
+    padding: wp('2%'),
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: wp('5%'),
     paddingTop: hp('1%'),
   },
-  backButton: {
-    marginRight: wp('4%'),
-  },
   headerTextContainer: {
-    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: wp('5%'),
@@ -260,15 +289,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     marginHorizontal: wp('5%'),
-    marginVertical: hp('2%'),
+    marginTop: hp('-7%'),
+    marginBottom: hp('2%'),
     paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1.5%'),
-    borderRadius: 25,
+    paddingVertical: hp('0.5%'),
+    borderRadius: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
   },
   searchIcon: {
     marginRight: wp('3%'),
@@ -283,7 +314,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: wp('5%'),
-    paddingBottom: hp('15%'),
+    paddingBottom: hp('5%'),
   },
   loadingContainer: {
     flex: 1,
@@ -299,11 +330,13 @@ const styles = StyleSheet.create({
     marginBottom: hp('2%'),
     borderRadius: 15,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#E3F2FD', // Light blue border
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 4,
+    elevation: 3,
   },
   hospitalImage: {
     height: hp('30%'),
@@ -314,7 +347,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'flex-end',
     padding: wp('4%'),
   },
@@ -326,76 +359,61 @@ const styles = StyleSheet.create({
   },
   hospitalDetails: {
     flex: 1,
+    paddingTop: hp('1%'),
   },
   hospitalName: {
-    fontSize: wp('5%'),
+    fontSize: wp('4.5%'),
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: hp('0.5%'),
+    marginBottom: hp('0.3%'),
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   hospitalType: {
-    fontSize: wp('3.5%'),
+    fontSize: wp('3.2%'),
     color: '#FFFFFF',
     opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   ratingContainer: {
-    alignItems: 'flex-end',
-    marginRight: wp('2%'),
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
   },
   starsContainer: {
     flexDirection: 'row',
-    marginBottom: hp('0.3%'),
+    marginRight: wp('2%'),
   },
   ratingText: {
     fontSize: wp('3.5%'),
     color: '#FFFFFF',
     fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   viewButtonContainer: {
     alignItems: 'flex-end',
+    marginTop: -hp('6%'),
   },
   viewButton: {
-    backgroundColor: '#003784',
-    paddingHorizontal: wp('8%'),
-    paddingVertical: hp('1.2%'),
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: wp('6%'),
+    paddingVertical: hp('1%'),
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   viewButtonText: {
-    color: '#FFFFFF',
+    color: '#003784',
     fontSize: wp('3.5%'),
     fontWeight: 'bold',
-  },
-  bottomNavigation: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#003784',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: hp('1.5%'),
-    paddingBottom: Platform.OS === 'ios' ? hp('3%') : hp('1.5%'),
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  navItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  activeNavItem: {
-    // Active state styling
-  },
-  navIconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1%'),
-    borderRadius: 20,
-    marginBottom: hp('0.5%'),
-  },
-  navText: {
-    color: '#FFFFFF',
-    fontSize: wp('3%'),
-    marginTop: hp('0.5%'),
   },
 });
 

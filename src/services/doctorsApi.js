@@ -1,13 +1,17 @@
 import axios from 'axios';
-
-const BASE_URL = 'https://spiderdesk.asia/healto';
+import { DOCTORS_URL, basicAuth } from '../config/config';
 
 // Fetch all doctors
 export const fetchDoctors = async () => {
   try {
-    console.log('Fetching doctors from:', `${BASE_URL}/doctors`);
+    console.log('Fetching doctors from:', DOCTORS_URL);
     
-    const response = await axios.get(`${BASE_URL}/doctors`);
+    const response = await axios.get(DOCTORS_URL, {
+      headers: {
+        'Authorization': basicAuth,
+        'Content-Type': 'application/json',
+      },
+    });
     
     console.log('Doctors API Response:', response.data);
     console.log('Doctors API Status:', response.status);

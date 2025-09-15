@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -12,6 +11,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -20,6 +20,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import Toast from 'react-native-toast-message';
+import { PoppinsFonts } from '../config/fonts';
 
 // Accept navigation prop
 import { sendOTP } from '../services/loginApi.js';
@@ -56,7 +57,7 @@ const Login = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <LinearGradient
         colors={['rgba(223, 239, 255, 0.5)', 'rgba(255, 255, 255, 0)']}
@@ -83,22 +84,9 @@ const Login = ({ navigation }) => {
 
           <View style={styles.contentContainer}>
             <View>
-              <Text style={styles.title}>
-                Welcome to{' '}
-                <MaskedView
-                  style={styles.maskedView}
-                  maskElement={
-                    <Text style={styles.titleHighlightMask}>HEALTO</Text>
-                  }
-                >
-                  <LinearGradient
-                    colors={['#003784', '#1A83FF']}
-                    start={{ x: 0.0143, y: 0 }}
-                    end={{ x: 0.9611, y: 1 }}
-                    style={styles.gradientText}
-                  />
-                </MaskedView>
-              </Text>
+            <Text style={styles.welcomeText}>
+            Welcome to <Text style={styles.healtoText}>HEALTO</Text>
+          </Text>
               <Text style={styles.subtitle}>
                 Join HEALTO to book appointments{'\n'}and manage your health in one
                 place.
@@ -117,17 +105,17 @@ const Login = ({ navigation }) => {
                 <TextInput
                   style={{
                     flex: 1,
-                    fontFamily: 'Work Sans',
-                    fontWeight: '500', // Medium
-                    fontSize: wp('3%'), // 12px responsive
-              //  lineHeight: wp('3%'), // 100% responsive
+                    fontFamily: PoppinsFonts.Regular,
+                    fontWeight: '500',
+                    fontSize: wp('4%'),
                     letterSpacing: 0,
                     textAlign: 'left',
-                    paddingHorizontal: 16,
-                    color: '#1A202C', // text color
+                    paddingHorizontal: wp('4%'),
+                    color: '#1A202C',
+                    height: '100%',
                   }}
                   placeholder="Enter mobile number"
-                  placeholderTextColor="#858C98" // placeholder color
+                  placeholderTextColor="#858C98"
                   keyboardType="phone-pad"
                   value={mobileNumber}
                   onChangeText={setMobileNumber}
@@ -138,7 +126,7 @@ const Login = ({ navigation }) => {
             </View>
 
             <TouchableOpacity
-              style={{ width: '100%', marginTop: 20 }} // container sizing
+              style={{ width: '100%', marginTop: hp('3%') }}
               onPress={handleGetOTP}
             >
               <LinearGradient
@@ -166,14 +154,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   imageContainer: {
-    height: hp('50%'),
+    height: hp('35%'),
     width: wp('100%'),
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: wp('4%'),
   },
   image: {
-    width: wp('100%'),
-    height: hp('50%'),
+    width: '100%',
+    height: '100%',
     borderRadius: 20,
     borderWidth: 6,
     borderColor: 'rgba(255, 255, 255, 0.8)',
@@ -181,54 +170,69 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
-    position: 'relative',
+    resizeMode: 'cover',
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'space-between',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 40,
-    marginTop: 20,
+    paddingHorizontal: wp('6%'),
+    justifyContent: 'flex-start',
+    paddingBottom: hp('3%'),
+    marginTop: hp('1%'),
   },
   title: {
-    fontFamily: 'Work Sans', // Make sure Work Sans is linked correctly
-    fontWeight: '900', // Black weight
-    fontSize: wp('8%'), // Approx 32px, responsive
-    lineHeight: wp('8%'), // 100% of font size
-    letterSpacing: 0, // 0% spacing
+    fontFamily: PoppinsFonts.Bold,
+    fontWeight: '900',
+    fontSize: wp('6.5%'),
+    lineHeight: wp('8%'),
+    letterSpacing: 0,
     textAlign: 'center',
-    color: '#2D3748', // existing color
+    color: '#2D3748',
+    marginBottom: hp('1%'),
+    paddingHorizontal: wp('1%'),
+    flexWrap: 'wrap',
+  },
+  titleText: {
+    fontFamily: PoppinsFonts.Bold,
+    fontWeight: '900',
+    fontSize: wp('6.5%'),
+    lineHeight: wp('8%'),
+    letterSpacing: 0,
+    color: '#2D3748',
   },
   subtitle: {
-    fontFamily: 'Work Sans',
-    fontWeight: '500', // Medium
-    fontSize: wp('3.5%'), // 14px responsive
-    lineHeight: wp('3.5%'), // 100%
-    letterSpacing: 0, // 0%
+    fontFamily: PoppinsFonts.Regular,
+    fontWeight: '500',
+    fontSize: wp('3.5%'),
+    lineHeight: wp('4.5%'),
+    letterSpacing: 0,
     textAlign: 'center',
     color: '#4A5568',
-    marginTop: hp('2%'), // optional spacing from title
+    marginTop: hp('1%'),
+    marginBottom: hp('3%'),
+    paddingHorizontal: wp('2%'),
   },
   inputWrapper: {
     flexDirection: 'row',
     backgroundColor: '#F7FAFC',
     borderRadius: 14,
-    marginTop: 48,
+    marginTop: hp('2%'),
     alignItems: 'center',
-    height: 60,
+    height: hp('6%'),
     borderWidth: 1,
     borderColor: '#E8EDF2',
+    paddingHorizontal: wp('2%'),
   },
   countryCodeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    height: '60%',
+    paddingHorizontal: wp('4%'),
+    height: '100%',
     borderRightWidth: 1,
     borderRightColor: '#E2E8F0',
+    justifyContent: 'center',
   },
   smallBoldText: {
-    fontFamily: 'Work Sans', // Make sure Work Sans is linked
+    fontFamily: PoppinsFonts.Bold,
     fontWeight: '700', // Bold
     fontSize: wp('3%'), // Approx 12px responsive
     lineHeight: wp('3%'), // 100% line-height
@@ -246,13 +250,14 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#0D63F3',
     borderRadius: 14,
-    height: 58,
+    height: hp('6%'),
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    width: '100%',
+    marginTop: hp('3%'),
   },
   buttonText: {
-    fontFamily: 'Work Sans', // Make sure Work Sans Bold is linked in your project
+    fontFamily: PoppinsFonts.Bold,
     fontWeight: '700', // Bold
     fontSize: wp('3.5%'), // Approx 14px, responsive
     lineHeight: wp('3.5%'), // 100% line-height
@@ -261,22 +266,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', // text color, adjust as needed
   },
   titleHighlight: {
-    fontFamily: 'Work Sans', // Ensure Work Sans is linked correctly
-    fontWeight: '900', // Black weight
-    fontSize: wp('8%'), // Approx 32px, responsive
-    lineHeight: wp('8%'), // 100% of font size
-    letterSpacing: 0, // 0% letter spacing
-    textAlign: 'center', // centered text
-    color: '#0b5ff0ff', // your preferred color
+    fontFamily: PoppinsFonts.Black,
+    fontWeight: '900',
+    fontSize: wp('6.5%'),
+    lineHeight: wp('8%'),
+    letterSpacing: 0,
+    textAlign: 'center',
+    color: '#0b5ff0ff',
   },
   maskedView: {
     flexDirection: 'row',
     height: wp('8%'), // Match the font size
   },
   titleHighlightMask: {
-    fontFamily: 'Work Sans',
+    fontFamily: PoppinsFonts.Black,
     fontWeight: '900',
-    fontSize: wp('8%'),
+    fontSize: wp('6.5%'),
     lineHeight: wp('8%'),
     letterSpacing: 0,
     textAlign: 'center',
@@ -286,6 +291,21 @@ const styles = StyleSheet.create({
   gradientText: {
     flex: 1,
     height: wp('8%'), // Match the font size
+  }, welcomeText: {
+    fontFamily: 'Poppins', // Make sure Poppins is linked correctly
+    fontWeight: '900', // Equivalent to Black
+    fontSize: wp('8%'), // Approximate 32px, responsive
+  
+    letterSpacing: 0, // 0% letter spacing
+    textAlign: 'center',
+    color: '#222', // or your preferred color
+  }, healtoText: {
+    fontFamily: 'Poppins', // Make sure this font is linked correctly
+    fontWeight: '900', // equivalent to Black
+    fontSize: wp('8%'), // responsive approximation of 32px
+   
+    textAlign: 'center',
+    color: '#1977F3',
   },
 });
 

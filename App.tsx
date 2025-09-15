@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Provider } from 'react-redux';
+import { store } from './src/store';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Login from './src/screens/Login';
 import OTPScreen from './src/screens/OtpPage';
 import ProfileCreatedScreen from './src/screens/ProfileCreatedScreen';
@@ -8,7 +12,14 @@ import BottomTap from './src/screens/BottomTap/BottomTap';
 import ClinicsScreen from './src/screens/clinicsScreen';
 import HospitalDetailsScreen from './src/screens/HospitalDetailsScreen';
 import DoctorListScreen from './src/screens/DoctorListScreen';
+import DoctorAppointmentScreen from './src/screens/DoctorAppointmentScreen';
+import BookingDetailsScreen from './src/screens/BookingDetailsScreen';
+import BookingConfirmScreen from './src/screens/BookingConfirmScreen';
+import PaymentScreen from './src/screens/PaymentScreen';
+import PaymentSuccessScreen from './src/screens/PaymentSuccessScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
+import Appointment from './src/screens/Appointment';
 
 const Stack = createNativeStackNavigator();
 
@@ -62,8 +73,10 @@ const toastConfig = {
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="MainApp">
+    <SafeAreaProvider>
+      <Provider store={store}>
+        <NavigationContainer>
+        <Stack.Navigator initialRouteName="ProfileCreated">
         <Stack.Screen
           name="Login"
           component={Login}
@@ -99,8 +112,51 @@ export default function App() {
           component={DoctorListScreen}
           options={{ headerShown: false }}
         />
-      </Stack.Navigator>
-      <Toast config={toastConfig} />
-    </NavigationContainer>
+        <Stack.Screen
+          name="DoctorAppointment"
+          component={DoctorAppointmentScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BookingDetails"
+          component={BookingDetailsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BookingConfirm"
+          component={BookingConfirmScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Payment"
+          component={PaymentScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PaymentSuccess"
+          component={PaymentSuccessScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ headerShown: false }}
+        />
+         <Stack.Screen
+          name="Appointment"
+          component={Appointment}
+          options={{ headerShown: false }}
+        />
+         <Stack.Screen
+          name="ProfileCreatedScreen"
+          component={ProfileCreatedScreen}
+          options={{ headerShown: false }}
+        />
+
+        </Stack.Navigator>
+        </NavigationContainer>
+        <Toast config={toastConfig} />
+      </Provider>
+    </SafeAreaProvider>
   );
 }

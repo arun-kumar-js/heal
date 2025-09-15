@@ -1,7 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome5';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -21,25 +20,31 @@ const BottomTap = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
+          let iconSource;
 
           if (route.name === 'Home') {
-            iconName = 'home';
+            iconSource = require('../../Assets/Images/Home_icon.png');
           } else if (route.name === 'Appointment') {
-            iconName = 'folder-open';
+            iconSource = require('../../Assets/Images/Appointment_icon.png');
           } else if (route.name === 'Category') {
-            iconName = 'th-large';
+            iconSource = require('../../Assets/Images/Category_Icon.png');
           } else if (route.name === 'Settings') {
-            iconName = 'cog';
+            iconSource = require('../../Assets/Images/Settings.png');
           }
 
           return (
             <View style={styles.iconContainer}>
-              <Icon
-                name={iconName}
-                size={size}
-                color={color}
-                style={styles.tabIcon}
+              <Image
+                source={iconSource}
+                style={[
+                  styles.tabIcon,
+                  {
+                    width: size,
+                    height: size,
+                    tintColor: color,
+                  }
+                ]}
+                resizeMode="contain"
               />
               {focused && <View style={styles.activeIndicator} />}
             </View>
@@ -67,7 +72,7 @@ const BottomTap = () => {
         tabBarLabelStyle: {
           fontSize: wp('3%'),
           fontWeight: '600',
-          fontFamily: 'Work Sans',
+          fontFamily: 'Poppins',
           color: '#FFFFFF',
         },
         headerShown: false,

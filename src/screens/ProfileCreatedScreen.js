@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     height: wp('45%'),
   },
   title: {
-    fontFamily: 'Work Sans', // Make sure Work Sans Bold is linked in your project
+    fontFamily: 'Poppins', // Make sure Poppins Bold is linked in your project
     fontWeight: '700', // Bold
     fontSize: wp('5%'), // Approx 20px responsive
     lineHeight: wp('5%'), // 100% of font size
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     marginTop: hp('2%'),
   },
   subtitle: {
-    fontFamily: 'Work Sans', // Ensure Work Sans SemiBold is linked in your project
+    fontFamily: 'Poppins', // Ensure Poppins SemiBold is linked in your project
     fontWeight: '600', // SemiBold
     fontSize: wp('3.5%'), // Approx 14px, responsive
     lineHeight: wp('3.5%'), // 100% of font size
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: wp('4%'),
     fontWeight: '600',
-    fontFamily: 'Work Sans',
+    fontFamily: 'Poppins',
     textAlign: 'center',
   },
 });

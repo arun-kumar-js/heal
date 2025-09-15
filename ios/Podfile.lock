@@ -2340,6 +2340,34 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNDateTimePicker (8.4.4):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RNScreens (4.14.1):
     - boost
     - DoubleConversion
@@ -2505,6 +2533,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCMaskedView (from `../node_modules/@react-native-masked-view/masked-view`)"
+  - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - SocketRocket (~> 0.7.1)
@@ -2662,6 +2691,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCMaskedView:
     :path: "../node_modules/@react-native-masked-view/masked-view"
+  RNDateTimePicker:
+    :path: "../node_modules/@react-native-community/datetimepicker"
   RNScreens:
     :path: "../node_modules/react-native-screens"
   RNVectorIcons:
@@ -2743,11 +2774,12 @@ SPEC CHECKSUMS:
   ReactCodegen: a55799cae416c387aeaae3aabc1bc0289ac19cee
   ReactCommon: 116d6ee71679243698620d8cd9a9042541e44aa6
   RNCMaskedView: 5ef8c95cbab95334a32763b72896a7b7d07e6299
+  RNDateTimePicker: cda4c045beca864cebb3209ef9cc4094f974864c
   RNScreens: 6ced6ae8a526512a6eef6e28c2286e1fc2d378c3
   RNVectorIcons: 791f13226ec4a3fd13062eda9e892159f0981fae
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 00013dd9cde63a2d98e8002fcc4f5ddb66c10782
 
-PODFILE CHECKSUM: 641fc04943b957d6bfbec1e30bbf8612e5b41e1e
+PODFILE CHECKSUM: 2dd6c7cbed1ffc5f0bd313ca74c474afc431ef25
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.15.2

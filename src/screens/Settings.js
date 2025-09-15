@@ -1,39 +1,225 @@
+
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  SafeAreaView,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 
-const Settings = () => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
-      <Text style={styles.subtitle}>Configure your app preferences</Text>
+const Settings = ({ navigation }) => {
+  const settingsSections = [
+    {
+      title: 'Account',
+      items: [
+        {
+          id: 'profile',
+          title: 'Profile Information',
+          icon: 'user',
+          onPress: () => navigation.navigate('Profile'),
+        },
+      ],
+    },
+    {
+      title: 'Appointments',
+      items: [
+        {
+          id: 'history',
+          title: 'Appointment History\'s',
+          icon: 'calendar-alt',
+          onPress: () => console.log('Appointment History'),
+        },
+      ],
+    },
+    {
+      title: 'Support',
+      items: [
+        {
+          id: 'help',
+          title: 'Help Centre',
+          icon: 'headphones',
+          onPress: () => console.log('Help Centre'),
+        },
+        {
+          id: 'faq',
+          title: 'FAQs',
+          icon: 'question-circle',
+          onPress: () => console.log('FAQs'),
+        },
+        {
+          id: 'contact',
+          title: 'Contact Support',
+          icon: 'phone',
+          onPress: () => console.log('Contact Support'),
+        },
+      ],
+    },
+    {
+      title: 'Legal',
+      items: [
+        {
+          id: 'terms',
+          title: 'Terms & Condition',
+          icon: 'file-alt',
+          onPress: () => console.log('Terms & Condition'),
+        },
+        {
+          id: 'privacy',
+          title: 'Privacy Policy',
+          icon: 'shield-alt',
+          onPress: () => console.log('Privacy Policy'),
+        },
+        {
+          id: 'contact-legal',
+          title: 'Contact Support',
+          icon: 'phone',
+          onPress: () => console.log('Contact Support'),
+        },
+      ],
+    },
+    {
+      title: 'Logout',
+      items: [
+        {
+          id: 'logout',
+          title: 'Logout',
+          icon: 'sign-out-alt',
+          onPress: () => console.log('Logout'),
+        },
+      ],
+    },
+  ];
+
+  const renderSettingItem = (item, isLast = false) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[styles.settingItem, !isLast && styles.settingItemBorder]}
+      onPress={item.onPress}
+    >
+      <View style={styles.settingItemLeft}>
+        <Icon name={item.icon} size={20} color="#333333" style={styles.settingIcon} />
+        <Text style={styles.settingText}>{item.title}</Text>
+      </View>
+      <Icon name="chevron-right" size={16} color="#8E8E93" />
+    </TouchableOpacity>
+  );
+
+  const renderSection = (section) => (
+    <View key={section.title} style={styles.section}>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+        {section.items.map((item, index) => 
+          renderSettingItem(item, index === section.items.length - 1)
+        )}
+      </View>
     </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {settingsSections.map(renderSection)}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F5F5F5',
+  },
+  header: {
+    backgroundColor: '#0D6EFD',
+    paddingTop: hp('2%'),
+    paddingBottom: hp('3%'),
     paddingHorizontal: wp('5%'),
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  title: {
-    fontSize: wp('8%'),
+  backButton: {
+    marginRight: wp('4%'),
+    padding: wp('2%'),
+  },
+  headerTitle: {
+    fontSize: wp('6%'),
     fontWeight: 'bold',
-    color: '#0D6EFD',
-    marginBottom: hp('2%'),
-    fontFamily: 'Work Sans',
+    color: '#FFFFFF',
   },
-  subtitle: {
-    fontSize: wp('4%'),
-    color: '#8E8E93',
+  content: {
+    flex: 1,
+    paddingHorizontal: wp('5%'),
+    paddingTop: hp('2%'),
+    marginBottom: hp('8%'),
+  },
+  section: {
+    marginBottom: hp('2%'),
+  },
+  sectionTitle: {
+    fontSize: wp('4.5%'),
+    fontWeight: 'bold',
+    color: '#333333',
+    paddingVertical: hp('2%'),
+    paddingHorizontal: wp('4%'),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('3%'),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: hp('2%'),
+    paddingHorizontal: wp('4%'),
+  },
+  settingItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  settingItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingIcon: {
+    marginRight: wp('4%'),
+    width: wp('5%'),
     textAlign: 'center',
-    fontFamily: 'Work Sans',
+  },
+  settingText: {
+    fontSize: wp('4%'),
+    color: '#333333',
+    flex: 1,
   },
 });
 
