@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   ImageBackground,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -18,46 +17,45 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchDoctors, setSelectedCategory } from '../store/slices/doctorsSlice';
-import { selectDoctors, selectDoctorsLoading, selectDoctorsError } from '../store/selectors/doctorsSelectors';
+import axios from 'axios';
 
 const Home = ({ navigation }) => {
-  const dispatch = useDispatch();
-  const doctors = useSelector(selectDoctors);
-  const loading = useSelector(selectDoctorsLoading);
-  const error = useSelector(selectDoctorsError);
   const [activeFilter, setActiveFilter] = useState('All');
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Fetch doctors data on component mount
   useEffect(() => {
-    dispatch(fetchDoctors());
-  }, [dispatch]);
+    loadDoctors();
+  }, []);
 
+  const loadDoctors = async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching doctors from: https://spiderdesk.asia/healto/doctors');
+      
+      const response = await axios.get('https://spiderdesk.asia/healto/api/doctors');
+      
+      console.log('Doctors API Response:', response);
+      console.log('Doctors API Status:', response.status);
+      
+      setDoctors(response.data.doctors);
+      console.log('Doctors loaded successfully:', response.data);
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 console.log("doctors", doctors);
 
-  // Filter doctors based on active filter
-  const getFilteredDoctors = () => {
-    if (!doctors || doctors.length === 0) return [];
-    
-    let filtered = doctors;
-    
-    // Filter by specialty if not "All"
-    if (activeFilter !== 'All') {
-      filtered = doctors.filter(doctor => {
-        const specialty = getDoctorSpecialty(doctor);
-        console.log(`Doctor: ${doctor.name}, Specialty: ${specialty}, Filter: ${activeFilter}, Match: ${specialty === activeFilter}`);
-        return specialty === activeFilter;
-      });
-    }
-    
-    console.log(`Active Filter: ${activeFilter}, Filtered Doctors Count: ${filtered.length}`);
-    
-    // Return first 3 doctors
-    return filtered.slice(0, 3);
-  };
-
-  const displayedDoctors = getFilteredDoctors();
+  // Get first 3 doctors for display
+  const displayedDoctors = doctors && doctors.length > 0 ? doctors.slice(0, 3) : [];
   const hospitalData = [
     {
       name: 'Hospitals',
@@ -127,6 +125,35 @@ console.log("doctors", doctors);
     return { uri: `https://randomuser.me/api/portraits/${doctor.gender === 'Female' ? 'women' : 'men'}/${Math.floor(Math.random() * 50) + 1}.jpg` };
   };
 
+  // Helper function to get doctor specialty
+  const getDoctorSpecialty = (doctor) => {
+    // Map specialization_id to actual specialty names
+    const specialtyMap = {
+      1: 'Cardiology',
+      2: 'Orthopedics', 
+      3: 'Pediatrics',
+      4: 'Dermatology',
+      5: 'Neurology',
+      6: 'General Medicine',
+      7: 'Gynecology',
+      8: 'Ophthalmology',
+      9: 'ENT',
+      10: 'Psychiatry'
+    };
+    
+    // Use specialization_id if available, otherwise fallback to type
+    if (doctor.specialization_id) {
+      return specialtyMap[doctor.specialization_id] || 'General Medicine';
+    }
+    
+    // Fallback to type-based mapping
+    const typeMap = {
+      'hospital': 'Cardiology',
+      'clinic': 'General Medicine',
+      'multispeciality': 'Multi Specialty'
+    };
+    return typeMap[doctor.type] || 'General Medicine';
+  };
 
   // Prepare doctors data for display
   const doctorData = displayedDoctors.map((doctor, index) => ({
@@ -135,8 +162,6 @@ console.log("doctors", doctors);
     specialty: getDoctorSpecialty(doctor),
     rating: (4.0 + (index % 3) * 0.3).toFixed(1),
     image: getDoctorImage(doctor).uri,
-    // Include additional doctor data for appointment screen
-    ...doctor, // Spread the original doctor object to include all fields
   }));
 
   // Add View All option
@@ -147,11 +172,10 @@ console.log("doctors", doctors);
   });
 
   // Show loading state if doctors are not loaded yet
-  console.log('Loading state:', loading, 'Doctors count:', doctors.length);
   if (loading && doctors.length === 0) {
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
         <View style={styles.container}>
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Loading doctors...</Text>
@@ -163,11 +187,7 @@ console.log("doctors", doctors);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor="#0D6EFD" 
-        translucent={false}
-      />
+      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -216,10 +236,7 @@ console.log("doctors", doctors);
                   <TouchableOpacity 
                     key={index} 
                     style={styles.categoryItem}
-                    onPress={() => navigation.navigate('ClinicsScreen', { 
-                      selectedType: item.name,
-                      selectedTypeFormatted: item.name.replace('\n', ' ')
-                    })}
+                    onPress={() => navigation.navigate('ClinicsScreen')}
                   >
                     <View
                       style={[
@@ -244,19 +261,7 @@ console.log("doctors", doctors);
               <Text style={styles.cardSubtitle}>Select the Department</Text>
               <View style={styles.departmentGrid}>
                 {departmentData.map((item, index) => (
-                  <TouchableOpacity 
-                    key={index} 
-                    style={styles.departmentItem}
-                    onPress={() => {
-                      if (item.viewAll) {
-                        navigation.navigate('Category');
-                      } else {
-                        // Set selected category in Redux and navigate
-                        dispatch(setSelectedCategory(item.name));
-                        navigation.navigate('DoctorListScreen');
-                      }
-                    }}
-                  >
+                  <TouchableOpacity key={index} style={styles.departmentItem}>
                     {item.viewAll ? (
                       <View
                         style={[
@@ -299,14 +304,11 @@ console.log("doctors", doctors);
             <View style={styles.doctorsSection}>
               <View style={styles.doctorsHeader}>
                 <View>
-                  <Text style={styles.topDoctorsTitle}>Top Doctors?</Text>
+                  <Text style={styles.headerTextContainer}>Top Doctors?</Text>
                   <Text style={styles.cardSubtitle}>Select the Department</Text>
                   
                 </View>
-                <TouchableOpacity onPress={() => {
-                  dispatch(setSelectedCategory(null)); // Clear category filter
-                  navigation.navigate('DoctorListScreen');
-                }}>
+                <TouchableOpacity onPress={() => navigation.navigate('DoctorListScreen', { doctors: doctors })}>
                   <Text style={styles.seeAllLink}>See All</Text>
                 </TouchableOpacity>
               </View>
@@ -352,19 +354,7 @@ console.log("doctors", doctors);
               </ScrollView>
               <View style={styles.doctorsGrid}>
                 {doctorData.map((doctor, index) => (
-                  <TouchableOpacity 
-                    key={index} 
-                    style={styles.doctorCard}
-                    onPress={() => {
-                      if (!doctor.viewAll) {
-                        // Navigate to DoctorAppointmentScreen with doctor data
-                        navigation.navigate('DoctorAppointment', { 
-                          doctor: doctor,
-                          doctorId: doctor.id 
-                        });
-                      }
-                    }}
-                  >
+                  <TouchableOpacity key={index} style={styles.doctorCard}>
                     <ImageBackground
                       source={{ uri: doctor.image }}
                       style={styles.doctorImage}
@@ -373,10 +363,7 @@ console.log("doctors", doctors);
                       {doctor.viewAll ? (
                         <TouchableOpacity 
                           style={styles.viewAllDoctorOverlay}
-                          onPress={() => {
-                            dispatch(setSelectedCategory(null)); // Clear category filter
-                            navigation.navigate('DoctorListScreen');
-                          }}
+                          onPress={() => navigation.navigate('DoctorListScreen', { doctors: doctors })}
                         >
                           <Text style={styles.viewAllDoctorText}>View All</Text>
                         </TouchableOpacity>
@@ -432,7 +419,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#0D6EFD',
     paddingHorizontal: wp('5%'),
-    paddingTop: Platform.OS === 'android' ? hp('1%') : hp('2%'),
+    paddingTop: hp('2%'),
     paddingBottom: hp('2%'),
     borderBottomLeftRadius: wp('7.5%'),
     borderBottomRightRadius: wp('7.5%'),
@@ -490,7 +477,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   mainContent: {
-    marginTop: Platform.OS === 'android' ? hp('-1.5%') : hp('-2.5%'),
+    marginTop: hp('-2.5%'),
     paddingHorizontal: wp('4%'),
   },
   card: {
@@ -523,7 +510,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cardSubtitle: {
-    fontSize: wp('4%'),
+    fontSize: wp('3.5%'),
     color: '#666',
     marginTop: hp('0.2%'),
     marginBottom: hp('2%'),
@@ -603,12 +590,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
-  },
-  topDoctorsTitle: {
-    fontSize: wp('6%'),
-    fontWeight: 'bold',
-    color: '#0D6EFD',
-    marginBottom: hp('0.5%'),
   },
   filterScroll: {
     paddingBottom: 15,

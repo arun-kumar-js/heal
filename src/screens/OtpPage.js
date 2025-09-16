@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -21,12 +22,23 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { OTP_URL, basicAuth } from '../config/config.js';
 import Toast from 'react-native-toast-message';
+import { saveOTPResponse, getOTPResponse, clearOTPData } from '../utils/otpStorage';
 const OTP_LENGTH = 4;
 
 const OTPScreen = () => {
   const [otp, setOtp] = useState(['', '', '', '']);
   const inputs = useRef([]);
   const navigation = useNavigation();
+
+  // Function to retrieve OTP response from AsyncStorage
+  const getStoredOTPResponse = async () => {
+    return await getOTPResponse();
+  };
+
+  // Function to clear stored OTP response
+  const clearStoredOTPResponse = async () => {
+    return await clearOTPData();
+  };
 
   const handleChange = (text, index) => {
     if (/^[0-9]?$/.test(text)) {
@@ -81,6 +93,14 @@ const OTPScreen = () => {
       console.log('Response keys:', Object.keys(data));
 
       if (response.ok && data.status === true) {
+        // Save OTP response with timestamp using utility function
+        const saveSuccess = await saveOTPResponse(data);
+        if (saveSuccess) {
+          console.log('OTP response saved successfully with timestamp');
+        } else {
+          console.error('Failed to save OTP response');
+        }
+
         Toast.show({
           type: 'success',
           text1: 'Success',

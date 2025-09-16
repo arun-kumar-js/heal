@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -11,19 +10,43 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { PoppinsFonts, FontStyles } from '../config/fonts';
 import BackButton from '../components/BackButton';
+import { storeUserDetail, formatAppointmentData } from '../services/bookingApi';
+import Toast from 'react-native-toast-message';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  setDoctor, 
+  setDateTime, 
+  setPersonalInfo, 
+  setReason, 
+  setAmount, 
+  setToken,
+  bookAppointment,
+  clearFormData 
+} from '../store/slices/appointmentDetailsSlice';
+import { convertToISODate, testDateConversion, testMon22Issue } from '../utils/dateUtils';
+
+// Use the centralized date utility function
+const convertDateFormat = convertToISODate;
 
 const BookingDetailsScreen = ({ navigation, route }) => {
+  const dispatch = useDispatch();
+  const appointmentDetails = useSelector(state => state.appointmentDetails);
+  
   const { 
     doctor, 
     selectedDate, 
     selectedTime, 
+    selectedTimeSlot,
     reason, 
     token 
   } = route.params || {};
@@ -35,6 +58,66 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     reason || "I've been experiencing frequent chest discomfort, occasional shortness of breath, and unusual fatigue even during light activity."
   );
   const [isReasonEditable, setIsReasonEditable] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize Redux state with route params
+  useEffect(() => {
+    console.log('🔄 BOOKING DETAILS - Initializing Redux state with route params');
+    
+    if (doctor) {
+      dispatch(setDoctor(doctor));
+      console.log('👨‍⚕️ BOOKING DETAILS - Doctor dispatched to Redux:', doctor);
+    }
+    
+    if (selectedDate || selectedTime || selectedTimeSlot) {
+      // Convert selectedDate to proper format if needed
+      const formattedSelectedDate = convertDateFormat(selectedDate) || selectedDate;
+      
+      dispatch(setDateTime({ 
+        selectedDate: formattedSelectedDate, 
+        selectedTime, 
+        selectedTimeSlot 
+      }));
+      console.log('📅 BOOKING DETAILS - Date/Time dispatched to Redux:', { 
+        selectedDate: formattedSelectedDate, 
+        selectedTime, 
+        selectedTimeSlot 
+      });
+    }
+    
+    if (reason) {
+      dispatch(setReason(reason));
+      console.log('📝 BOOKING DETAILS - Reason dispatched to Redux:', reason);
+    }
+    
+    if (token) {
+      dispatch(setToken(token));
+      console.log('🎫 BOOKING DETAILS - Token dispatched to Redux:', token);
+    }
+    
+    if (selectedTimeSlot?.amount) {
+      dispatch(setAmount(selectedTimeSlot.amount));
+      console.log('💰 BOOKING DETAILS - Amount dispatched to Redux:', selectedTimeSlot.amount);
+    } else {
+      // Set default amount if no amount found in time slot
+      const defaultAmount = 500; // Default consultation fee
+      dispatch(setAmount(defaultAmount));
+      console.log('💰 BOOKING DETAILS - No amount in timeSlot, setting default:', defaultAmount);
+    }
+  }, [doctor, selectedDate, selectedTime, selectedTimeSlot, reason, token, dispatch]);
+
+  // Log Redux state changes
+  useEffect(() => {
+    console.log('📊 BOOKING DETAILS - Redux state updated:', appointmentDetails);
+  }, [appointmentDetails]);
+
+  // Test date conversion on component mount for debugging
+  useEffect(() => {
+    console.log('🧪 RUNNING DATE CONVERSION TEST:');
+    testDateConversion();
+    console.log('\n🔍 RUNNING SPECIFIC "Mon 22" TEST:');
+    testMon22Issue();
+  }, []);
 
   const getDoctorImage = (doctor) => {
     if (doctor?.profile_image) {
@@ -88,36 +171,155 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     return stars;
   };
 
-  const handleNext = () => {
+  // Validation function for booking data
+  const validateBookingData = () => {
+    const errors = [];
+    
     if (!fullName.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
-      return;
+      errors.push('Please enter your full name');
     }
     if (!mobileNumber.trim()) {
-      Alert.alert('Error', 'Please enter your mobile number');
-      return;
+      errors.push('Please enter your mobile number');
     }
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      errors.push('Please enter your email');
+    }
+    if (!doctor?.id) {
+      errors.push('Doctor information is missing');
+    }
+    if (!selectedDate) {
+      errors.push('Please select a date');
+    }
+    if (!selectedTime) {
+      errors.push('Please select a time slot');
+    }
+    if (!reasonForVisit.trim()) {
+      errors.push('Please provide a reason for visit');
+    }
+    
+    return errors;
+  };
+
+  const handleNext = async () => {
+    // Validate all required fields
+    const validationErrors = validateBookingData();
+    if (validationErrors.length > 0) {
+      Toast.show({
+        type: 'error',
+        text1: 'Validation Error',
+        text2: validationErrors[0], // Show first error
+      });
       return;
     }
 
-    // Generate a random token if not provided
-    const randomToken = token || Math.floor(Math.random() * 100).toString().padStart(2, '0');
+    // Dispatch personal information to Redux
+    const personalInfo = {
+      fullName: fullName.trim(),
+      mobileNumber: mobileNumber.trim(),
+      email: email.trim()
+    };
+    
+    dispatch(setPersonalInfo(personalInfo));
+    dispatch(setReason(reasonForVisit.trim()));
+    
+    console.log('👤 BOOKING DETAILS - Personal info dispatched to Redux:', personalInfo);
+    console.log('📝 BOOKING DETAILS - Reason dispatched to Redux:', reasonForVisit.trim());
 
-    // Navigate to BookingConfirmScreen with all required data
-    navigation.navigate('BookingConfirm', {
-      doctor: doctor,
-      selectedDate: selectedDate,
-      selectedTime: selectedTime,
-      reason: reasonForVisit,
-      token: randomToken,
-      personalInfo: {
-        fullName,
-        mobileNumber,
-        email
+    setIsLoading(true);
+
+    try {
+      // Use token from selected time slot, or generate a random one if not provided
+      const randomToken = selectedTimeSlot?.token || token || Math.floor(Math.random() * 100).toString().padStart(2, '0');
+
+      // Dispatch token to Redux
+      dispatch(setToken(randomToken));
+
+      // Format the appointment date properly with validation
+      console.log('📅 DATE DEBUG:');
+      console.log('selectedDate:', selectedDate);
+      console.log('selectedDate type:', typeof selectedDate);
+      
+      const convertedDate = convertDateFormat(selectedDate);
+      console.log('📅 BOOKING DETAILS - convertDateFormat result:', convertedDate);
+      const formattedDate = convertedDate || new Date().toISOString().split('T')[0];
+
+      console.log('formattedDate:', formattedDate);
+      console.log('selectedTimeSlot:', selectedTimeSlot);
+      console.log('selectedTime:', selectedTime);
+      
+      // Format appointment time to railway time (24-hour format)
+      let appointmentTime = '';
+      if (selectedTimeSlot?.start_time) {
+        appointmentTime = selectedTimeSlot.start_time;
+      } else if (selectedTime) {
+        // Convert selectedTime to railway format if needed
+        appointmentTime = selectedTime;
+      } else {
+        // Fallback to current time in railway format
+        const now = new Date();
+        appointmentTime = now.toTimeString().slice(0, 5); // HH:MM format
       }
-    });
+      
+      console.log('appointment_time value:', appointmentTime);
+
+      // Get amount from Redux state or use default
+      const appointmentAmount = appointmentDetails.formData.amount || 500;
+      console.log('💰 BOOKING DETAILS - Using amount for appointment:', appointmentAmount);
+
+      // Prepare appointment data
+      const appointmentData = {
+        doctor_id: doctor?.id || null,
+        clinic_id: doctor?.clinic_id || null,
+        full_name: fullName.trim(),
+        next_token: randomToken,
+        time_slot: appointmentTime,
+        appointment_date: formattedDate,
+        mobile_number: mobileNumber.trim(),
+        email: email.trim(),
+        reason: reasonForVisit.trim(),
+        amount: appointmentAmount // Include amount in appointment data
+      };
+
+      console.log('📤 BOOKING APPOINTMENT:', appointmentData);
+
+      // Use Redux async thunk to book appointment
+      const result = await dispatch(bookAppointment(appointmentData)).unwrap();
+
+      if (result) {
+        Toast.show({
+          type: 'success',
+          text1: 'Success!',
+          text2: 'Appointment booked successfully!',
+          visibilityTime: 2000,
+          onHide: () => {
+            // Navigate to booking confirm screen after toast hides
+            navigation.navigate('BookingConfirm', {
+              appointmentData: result,
+              doctor: doctor,
+              selectedDate: selectedDate,
+              selectedTime: selectedTime,
+              selectedTimeSlot: selectedTimeSlot,
+              reason: reasonForVisit,
+              token: randomToken,
+              personalInfo: {
+                fullName,
+                mobileNumber,
+                email
+              }
+            });
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Booking error:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -136,7 +338,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       {/* Header */}
@@ -157,7 +359,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
           <View style={styles.progressStep}>
             <View style={styles.stepCircleContainer}>
               <Image 
-                source={require('../Assets/Images/status1.png')} 
+                source={require('../Assets/Images/status.png')} 
                 style={styles.statusImage}
                 resizeMode="contain"
               />
@@ -170,7 +372,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
           <View style={styles.progressStep}>
             <View style={styles.stepCircleContainer}>
               <Image 
-                source={require('../Assets/Images/status.png')} 
+                source={require('../Assets/Images/status1.png')} 
                 style={styles.statusImage}
                 resizeMode="contain"
               />
@@ -183,7 +385,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
           <View style={styles.progressStep}>
             <View style={styles.stepCircleContainer}>
               <Image 
-                source={require('../Assets/Images/status.png')} 
+                source={require('../Assets/Images/status1.png')} 
                 style={styles.statusImage}
                 resizeMode="contain"
               />
@@ -193,7 +395,12 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Doctor Information Card */}
         <View style={styles.doctorCard}>
           <Image source={getDoctorImage(doctor)} style={styles.doctorImage} />
@@ -210,17 +417,29 @@ const BookingDetailsScreen = ({ navigation, route }) => {
             </View>
           </View>
           <TouchableOpacity style={styles.callButton}>
-            <Icon name="phone" size={16} color="#fff" />
+            <Image 
+              source={require('../Assets/Images/phone2.png')} 
+             style={{width: wp('12%'), height: wp('12%')}}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
         </View>
 
         {/* Personal Information Section */}
-        <View style={styles.section}>
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Personal Information</Text>
-          
+        </View>
+        
+        {/* Full Name Card */}
+        <View style={styles.inputCard}>
+        <Text style={styles.inputLabel}>Full Name</Text>
           <View style={styles.inputContainer}>
             <View style={styles.inputIcon}>
-              <Icon name="user" size={16} color="#0D6EFD" />
+              <Image
+                source={require('../Assets/Images/User.png')}
+                style={{ width: 16, height: 16, tintColor: '#0D6EFD' }}
+                resizeMode="contain"
+              />
             </View>
             <TextInput
               style={styles.input}
@@ -230,10 +449,19 @@ const BookingDetailsScreen = ({ navigation, route }) => {
               placeholderTextColor="#999"
             />
           </View>
+        </View>
 
+        {/* Mobile Number Card */}
+
+        <View style={styles.inputCard}>
+          <Text style={styles.inputLabel}>Mobile Number</Text>
           <View style={styles.inputContainer}>
             <View style={styles.inputIcon}>
-              <Icon name="phone" size={16} color="#0D6EFD" />
+            <Image
+                source={require('../Assets/Images/Phone.png')}
+                style={{ width: 16, height: 16, tintColor: '#0D6EFD' }}
+                resizeMode="contain"
+              />
             </View>
             <TextInput
               style={styles.input}
@@ -244,10 +472,18 @@ const BookingDetailsScreen = ({ navigation, route }) => {
               keyboardType="phone-pad"
             />
           </View>
+        </View>
 
+        {/* Email Card */}
+        <View style={styles.inputCard}>
+          <Text style={styles.inputLabel}>Email</Text>
           <View style={styles.inputContainer}>
             <View style={styles.inputIcon}>
-              <Icon name="envelope" size={16} color="#0D6EFD" />
+            <Image
+                source={require('../Assets/Images/Mail.png')}
+                style={{ width: 16, height: 16, tintColor: '#0D6EFD' }}
+                resizeMode="contain"
+              />
             </View>
             <TextInput
               style={styles.input}
@@ -289,7 +525,8 @@ const BookingDetailsScreen = ({ navigation, route }) => {
             editable={isReasonEditable}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
@@ -297,8 +534,14 @@ const BookingDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Next</Text>
+        <TouchableOpacity 
+          style={[styles.nextButton, isLoading && styles.nextButtonDisabled]} 
+          onPress={handleNext}
+          disabled={isLoading}
+        >
+          <Text style={styles.nextButtonText}>
+            {isLoading ? 'Booking...' : 'Book Appointment'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -310,15 +553,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: wp('5%'),
     paddingVertical: hp('2%'),
-    backgroundColor: '#fff',
+    backgroundColor: '#0D6EFD',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#0D6EFD',
   },
   backButton: {
     padding: wp('2%'),
@@ -333,7 +579,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     backgroundColor: '#f8f9fa',
-    paddingVertical: hp('3%'),
+    paddingVertical: hp('.5%'),
     paddingHorizontal: wp('5%'),
   },
   progressBar: {
@@ -364,7 +610,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   stepLabel: {
-    fontSize: wp('3.5%'),
+    fontSize: wp('3%'),
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
@@ -447,10 +693,22 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionHeader: {
+    marginBottom: hp('1%'),
+    paddingHorizontal: wp('1%'),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hp('2%'),
+  },
+  inputCard: {
+    backgroundColor: '#fff',
+    borderRadius: wp('3%'),
+    padding: wp('4%'),
+    marginBottom: hp('1.5%'),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
@@ -458,14 +716,27 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: hp('1%'),
   },
+  heading: {
+    fontSize: 14,
+    fontFamily: PoppinsFonts.SemiBold,
+    lineHeight: 14, // 100% of fontSize
+    letterSpacing: 0,
+    color: '#333',
+  },
+  inputLabel: {
+    fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Medium,
+    color: '#333',
+    marginBottom: hp('0.5%'),
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderRadius: wp('2%'),
-    marginBottom: hp('2%'),
     paddingHorizontal: wp('3%'),
-    paddingVertical: hp('1.5%'),
+   // paddingVertical: hp('1%'),
+marginTop: hp('1%'),
   },
   inputIcon: {
     marginRight: wp('3%'),
@@ -518,7 +789,16 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     fontSize: wp('4%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
+    color: '#fff',
+  },
+  nextButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
+  },
+  callIcon: {
+    width: wp('6%'),
+    height: wp('6%'),
     color: '#fff',
   },
 });

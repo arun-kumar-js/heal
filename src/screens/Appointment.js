@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
-const Appointment = () => {
+const Appointment = ({ navigation }) => {
   const doctors = [
     {
       id: 1,
@@ -75,7 +75,11 @@ const Appointment = () => {
   };
 
   const renderDoctorCard = (doctor) => (
-    <TouchableOpacity key={doctor.id} style={styles.doctorCard}>
+    <TouchableOpacity 
+      key={doctor.id} 
+      style={styles.doctorCard}
+      onPress={() => navigation.navigate('AppointmentDetails', { doctor })}
+    >
       <View style={styles.doctorInfo}>
         <Image source={{ uri: doctor.image }} style={styles.doctorImage} />
         <View style={styles.doctorDetails}>
@@ -98,12 +102,15 @@ const Appointment = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
           <Icon name="arrow-left" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Appointment Details</Text>

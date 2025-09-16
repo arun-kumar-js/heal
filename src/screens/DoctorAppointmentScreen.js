@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -11,9 +10,12 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
- Platform,
+  Platform,
   Modal,
+  ImageBackground,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -21,16 +23,27 @@ import {
 } from 'react-native-responsive-screen';
 import axios from 'axios';
 import { APPOINTMENT_FETCH_URL, basicAuth } from '../config/config';
-import BackButton from '../components/BackButton';
+import { storeUserDetail, formatAppointmentData } from '../services/bookingApi';
 
 const DoctorAppointmentScreen = ({ navigation, route }) => {
   const { doctor } = route.params || {};
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [reason, setReason] = useState('');
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedDateObj, setSelectedDateObj] = useState(() => new Date());
+  
+  // Initialize selectedDate with current date when component mounts
+  useEffect(() => {
+    const currentDate = new Date();
+    const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayNumber = currentDate.getDate().toString().padStart(2, '0');
+    const formattedDate = `${dayName} ${dayNumber}`;
+    setSelectedDate(formattedDate);
+    console.log('📅 DOCTOR APPOINTMENT - Initialized selectedDate with current date:', formattedDate);
+  }, []);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -666,7 +679,7 @@ console.log('clinic_id', clinic_id);
 
 
 
-  const handleScheduleAppointment = () => {
+  const handleScheduleAppointment = async () => {
     if (!selectedTime) {
       Alert.alert('Please select a time slot', 'Choose an available time for your appointment.');
       return;
@@ -677,8 +690,21 @@ console.log('clinic_id', clinic_id);
       return;
     }
 
-    // Generate a dummy token number
+    // Generate a token number
     const tokenNumber = `T-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+
+    // Format appointment data for API
+    const appointmentData = formatAppointmentData({
+      doctor_id: doctor?.id,
+      clinic_id: doctor?.clinic_id,
+      full_name: doctor?.name || 'Patient Name',
+      next_token: tokenNumber,
+      time_slot: selectedTime,
+      appointment_date: selectedDate,
+      mobile_number: '1234567890', // You can get this from user profile or input
+      email: 'patient@example.com', // You can get this from user profile or input
+      reason: reason
+    });
 
     console.log('🎫 BOOKING DATA:');
     console.log('  - Doctor:', doctor?.name);
@@ -686,50 +712,85 @@ console.log('clinic_id', clinic_id);
     console.log('  - Selected Time:', selectedTime);
     console.log('  - Reason:', reason);
     console.log('  - Token:', tokenNumber);
+    console.log('  - API Data:', JSON.stringify(appointmentData, null, 2));
 
-    // Navigate to BookingDetailsScreen with all the required data
-    navigation.navigate('BookingDetails', {
-      doctor: doctor,
-      selectedDate: selectedDate,
-      selectedTime: selectedTime,
-      reason: reason,
-      token: tokenNumber
-    });
+    try {
+      // Show loading
+      Alert.alert('Booking Appointment', 'Please wait while we book your appointment...');
+
+      // Call the booking API
+      const result = await storeUserDetail(appointmentData);
+
+      if (result.success) {
+        console.log('✅ APPOINTMENT BOOKED SUCCESSFULLY:', result.data);
+        
+        // Navigate to BookingDetailsScreen with all the required data
+        navigation.navigate('BookingDetails', {
+          doctor: doctor,
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+          reason: reason,
+          token: tokenNumber,
+          bookingResponse: result.data
+        });
+      } else {
+        console.error('❌ BOOKING FAILED:', result.message);
+        Alert.alert('Booking Failed', result.message || 'Failed to book appointment. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ BOOKING ERROR:', error);
+      Alert.alert('Error', 'An error occurred while booking your appointment. Please try again.');
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#ff6b6b" />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       
+      {/* Back Button */}
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+      >
+        <Icon name="arrow-left" size={20} color="#FFFFFF" />
+      </TouchableOpacity>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Doctor Profile Section */}
         <View style={styles.doctorProfileContainer}>
-          <Image
+          <ImageBackground
             source={getDoctorImage(doctor)}
             style={styles.doctorImage}
-            resizeMode="cover"
-          />
-          
-          {/* Doctor Info Overlay */}
-          <View style={styles.doctorInfoOverlay}>
-            <View style={styles.doctorDetails}>
-              <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
-              <Text style={styles.doctorSpecialty}>
-                {getDoctorSpecialty(doctor)} From Kl Clinic
-              </Text>
-              <View style={styles.ratingContainer}>
-                <View style={styles.starsContainer}>
-                  {renderStars(doctor?.rating || 4.5)}
-                </View>
-                <Text style={styles.ratingText}>4.5</Text>
-              </View>
-            </View>
+            imageStyle={styles.doctorImageStyle}
+          >
+            {/* Gradient Overlay */}
+            <View style={styles.gradientOverlay} />
             
-            <TouchableOpacity style={styles.callButton}>
-              <Icon name="phone" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+            {/* Doctor Info Overlay */}
+            <View style={styles.doctorInfoOverlay}>
+              <View style={styles.doctorDetails}>
+                <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
+                <Text style={styles.doctorSpecialty}>
+                  {getDoctorSpecialty(doctor)} From Kl Clinic
+                </Text>
+                <View style={styles.ratingContainer}>
+                  <View style={styles.starsContainer}>
+                    {renderStars(doctor?.rating || 4.5)}
+                  </View>
+                  <Text style={styles.ratingText}>4.5</Text>
+                </View>
+              </View>
+              
+              <TouchableOpacity style={styles.callButton}>
+                <Icon name="phone" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </ImageBackground>
         </View>
 
         {/* Statistics Card */}
@@ -849,62 +910,71 @@ console.log('clinic_id', clinic_id);
               <Text style={styles.loadingSubtext}>Fetching slots for {selectedDate || 'selected date'}</Text>
             </View>
           ) : availableSlots.length > 0 ? (
-            <View style={styles.timeSlotsGrid}>
+            <View style={styles.timeSlotsContainer}>
               {(() => {
                 console.log('🎨 RENDERING TIME SLOTS:');
                 console.log('  - Total Slots to Render:', availableSlots.length);
                 console.log('  - Slots Data:', JSON.stringify(availableSlots, null, 2));
                 return null;
               })()}
-              {availableSlots.map((slot, index) => {
-                // Log each slot being rendered
-                console.log(`🎯 RENDERING SLOT ${index + 1}:`, {
-                  originalTime: slot.time,
-                  endTime: slot.endTime,
-                  token: slot.token,
-                  isBooked: slot.isBooked,
-                  status: slot.status,
-                  index: index
-                });
-                
-                // Format time for display (convert 24h to 12h format)
-                const formatTime = (time24) => {
-                  const [hours, minutes] = time24.split(':');
-                  const hour = parseInt(hours);
-                  const ampm = hour >= 12 ? 'PM' : 'AM';
-                  const hour12 = hour % 12 || 12;
-                  return `${hour12}:${minutes} ${ampm}`;
-                };
-                
-                const displayTime = formatTime(slot.time);
-                console.log(`  📅 Formatted Time: ${slot.time} → ${displayTime}`);
-                
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.timeSlotButton,
-                      selectedTime === slot.time && styles.selectedTimeSlot
-                    ]}
-                    onPress={() => setSelectedTime(slot.time)}
-                  >
-                    <Text style={[
-                      styles.timeSlotText,
-                      selectedTime === slot.time && styles.selectedTimeText
-                    ]}>
-                      {displayTime}
-                    </Text>
-                    {slot.endTime && (
-                      <Text style={[
-                        styles.timeSlotEndText,
-                        selectedTime === slot.time && styles.selectedTimeText
-                      ]}>
-                        - {formatTime(slot.endTime)}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
+              
+              {Array.from({ length: Math.ceil(availableSlots.length / 3) }, (_, rowIndex) => (
+                <View key={rowIndex} style={styles.timeSlotsRow}>
+                  {availableSlots.slice(rowIndex * 3, (rowIndex + 1) * 3).map((slot, slotIndex) => {
+                    const actualIndex = rowIndex * 3 + slotIndex;
+                    // Log each slot being rendered
+                    console.log(`🎯 RENDERING SLOT ${actualIndex + 1}:`, {
+                      originalTime: slot.time,
+                      endTime: slot.endTime,
+                      token: slot.token,
+                      isBooked: slot.isBooked,
+                      status: slot.status,
+                      index: actualIndex
+                    });
+                    
+                    // Format time for display (convert 24h to 12h format)
+                    const formatTime = (time24) => {
+                      const [hours, minutes] = time24.split(':');
+                      const hour = parseInt(hours);
+                      const ampm = hour >= 12 ? 'PM' : 'AM';
+                      const hour12 = hour % 12 || 12;
+                      return `${hour12}:${minutes} ${ampm}`;
+                    };
+                    
+                    const displayTime = formatTime(slot.time);
+                    console.log(`  📅 Formatted Time: ${slot.time} → ${displayTime}`);
+                    
+                    return (
+                      <TouchableOpacity
+                        key={actualIndex}
+                        style={[
+                          styles.timeSlotButton,
+                          selectedTime === slot.time && styles.selectedTimeSlot
+                        ]}
+                        onPress={() => {
+                          setSelectedTime(slot.time);
+                          setSelectedTimeSlot(slot);
+                        }}
+                      >
+                        <Text style={[
+                          styles.timeSlotText,
+                          selectedTime === slot.time && styles.selectedTimeText
+                        ]}>
+                          {displayTime}
+                        </Text>
+                        {slot.endTime && (
+                          <Text style={[
+                            styles.timeSlotEndText,
+                            selectedTime === slot.time && styles.selectedTimeText
+                          ]}>
+                            - {formatTime(slot.endTime)}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           ) : (
             <View style={styles.noSlotsContainer}>
@@ -931,11 +1001,20 @@ console.log('clinic_id', clinic_id);
         {/* Schedule Appointment Button */}
         <TouchableOpacity 
           style={styles.scheduleButton}
-          onPress={handleScheduleAppointment}
+          onPress={() => navigation.navigate('BookingDetails', {
+            doctor: doctorData,
+            selectedDate: selectedDate,
+            selectedTime: selectedTime,
+            selectedTimeSlot: selectedTimeSlot,
+            reason: reason,
+            token: selectedTimeSlot?.token || null
+          })}
         >
           <Text style={styles.scheduleButtonText}>Schedule Appointment</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
 
       {/* Custom Calendar Picker */}
       <CustomCalendarPicker />
@@ -946,20 +1025,44 @@ console.log('clinic_id', clinic_id);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F5F5F5',
+  },
+  keyboardContainer: {
+    flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    left: wp('5%'),
+    top: hp('6%'),
+    zIndex: 1000,
+    padding: wp('2%'),
   },
   scrollView: {
     flex: 1,
+    paddingBottom: hp('5%'),
   },
   doctorProfileContainer: {
-    height: hp('35%'),
-    backgroundColor: '#ff6b6b',
+    height: hp('40%'),
     position: 'relative',
+    marginTop: hp('2%'),
   },
   doctorImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+  },
+  doctorImageStyle: {
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   doctorInfoOverlay: {
     position: 'absolute',
@@ -1011,15 +1114,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D6EFD',
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: hp('2%'),
-    marginHorizontal: wp('4%'),
-    marginTop: -hp('2%'),
-    borderRadius: wp('3%'),
-    elevation: 4,
+    paddingVertical: hp('2.5%'),
+    marginHorizontal: wp('5%'),
+    marginTop: hp('1%'),
+    borderRadius: 15,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    zIndex: 10,
   },
   statItem: {
     alignItems: 'center',
@@ -1037,26 +1141,27 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: wp('4%'),
-    marginTop: hp('2%'),
-    padding: wp('4%'),
-    borderRadius: wp('3%'),
-    elevation: 2,
+    marginHorizontal: wp('5%'),
+    marginTop: hp('2.5%'),
+    padding: wp('5%'),
+    borderRadius: 15,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hp('2%'),
+    marginBottom: hp('1%'),
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: hp('0.5%'),
   },
   calendarIcon: {
     padding: wp('2%'),
@@ -1099,20 +1204,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  timeSlotsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  timeSlotsContainer: {
     marginTop: hp('1%'),
   },
-  timeSlotButton: {
-    backgroundColor: '#f8f9fa',
-    paddingVertical: hp('1.5%'),
-    paddingHorizontal: wp('4%'),
-    borderRadius: wp('2%'),
-    marginRight: wp('3%'),
+  timeSlotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: hp('1%'),
+  },
+  timeSlotButton: {
+    backgroundColor: '#F5F5F5',
+    paddingVertical: hp('1.5%'),
+    paddingHorizontal: wp('3%'),
+    borderRadius: 25,
+    flex: 1,
+    marginHorizontal: wp('1%'),
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
   },
   selectedTimeSlot: {
     backgroundColor: '#0D6EFD',
@@ -1121,7 +1230,7 @@ const styles = StyleSheet.create({
   timeSlotText: {
     fontSize: wp('3.5%'),
     color: '#333',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   timeSlotEndText: {
     fontSize: wp('2.8%'),
@@ -1133,21 +1242,27 @@ const styles = StyleSheet.create({
   },
   reasonInput: {
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: wp('2%'),
+    borderColor: '#E0E0E0',
+    borderRadius: 15,
     padding: wp('4%'),
     fontSize: wp('3.8%'),
     color: '#333',
     textAlignVertical: 'top',
     minHeight: hp('8%'),
+    backgroundColor: '#F9F9F9',
   },
   scheduleButton: {
     backgroundColor: '#0D6EFD',
-    marginHorizontal: wp('4%'),
+    marginHorizontal: wp('5%'),
     marginVertical: hp('3%'),
-    paddingVertical: hp('2%'),
-    borderRadius: wp('2%'),
+    paddingVertical: hp('2.5%'),
+    borderRadius: 15,
     alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   scheduleButtonText: {
     fontSize: wp('4.5%'),
@@ -1353,24 +1468,24 @@ const styles = StyleSheet.create({
   },
   // Horizontal Date Picker Styles
   horizontalDateContainer: {
-    marginTop: hp('2%'),
+    marginTop: hp('0.5%'),
   },
   horizontalDateScroll: {
-    marginTop: hp('1%'),
+    marginTop: hp('0.2%'),
   },
   horizontalDateContent: {
-    paddingHorizontal: wp('2%'),
+    paddingHorizontal: wp('1%'),
   },
   datePillButton: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: wp('6%'),
-    paddingVertical: hp('1.5%'),
-    paddingHorizontal: wp('4%'),
-    marginRight: wp('3%'),
+    backgroundColor: '#F5F5F5',
+    borderRadius: 25,
+    paddingVertical: hp('1.2%'),
+    paddingHorizontal: wp('3%'),
+    marginRight: wp('1.5%'),
     alignItems: 'center',
-    minWidth: wp('16%'),
+    minWidth: wp('14%'),
     borderWidth: 1,
-    borderColor: '#E9ECEF',
+    borderColor: '#E0E0E0',
   },
   selectedDatePill: {
     backgroundColor: '#0D6EFD',
@@ -1390,7 +1505,7 @@ const styles = StyleSheet.create({
     width: wp('8%'),
     height: wp('8%'),
     borderRadius: wp('4%'),
-    backgroundColor: 'transparent',
+    backgroundColor: '#E0E0E0',
     justifyContent: 'center',
     alignItems: 'center',
   },

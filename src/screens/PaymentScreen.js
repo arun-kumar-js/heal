@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -8,25 +7,105 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { PoppinsFonts } from '../config/fonts';
+import { useSelector, useDispatch } from 'react-redux';
+import { setManualAmount } from '../store/slices/appointmentDetailsSlice';
 
 const PaymentScreen = ({ navigation, route }) => {
+  // Get data from Redux slice
+  const appointmentDetails = useSelector(state => state.appointmentDetails);
+  const dispatch = useDispatch();
+  
+  // Fallback to route params if Redux data is not available
   const { 
-    doctor, 
-    selectedDate, 
-    selectedTime, 
-    reason, 
-    token,
-    personalInfo 
+    doctor: routeDoctor, 
+    selectedDate: routeSelectedDate, 
+    selectedTime: routeSelectedTime, 
+    selectedTimeSlot: routeSelectedTimeSlot,
+    reason: routeReason, 
+    token: routeToken,
+    personalInfo: routePersonalInfo,
+    amount: routeAmount,
+    appointmentData: routeAppointmentData
   } = route.params || {};
+
+  // Use Redux data as primary source, fallback to route params
+  const doctor = appointmentDetails.formData.doctor || routeDoctor;
+  const selectedDate = appointmentDetails.formData.selectedDate || routeSelectedDate;
+  const selectedTime = appointmentDetails.formData.selectedTime || routeSelectedTime;
+  const selectedTimeSlot = appointmentDetails.formData.selectedTimeSlot || routeSelectedTimeSlot;
+  const reason = appointmentDetails.formData.reason || routeReason;
+  const token = appointmentDetails.formData.token || routeToken;
+  const personalInfo = appointmentDetails.formData.personalInfo || routePersonalInfo;
+  const appointmentData = appointmentDetails.currentAppointment || routeAppointmentData;
+  const amount = appointmentDetails.formData.amount || routeAmount || selectedTimeSlot?.amount;
+
+  // Debug: Log all data sources
+  console.log('💳 PAYMENT SCREEN - Redux data:', appointmentDetails.formData);
+  console.log('💳 PAYMENT SCREEN - Route params:', {
+    doctor: routeDoctor,
+    selectedDate: routeSelectedDate,
+    selectedTime: routeSelectedTime,
+    selectedTimeSlot: routeSelectedTimeSlot,
+    reason: routeReason,
+    token: routeToken,
+    personalInfo: routePersonalInfo,
+    amount: routeAmount,
+    appointmentData: routeAppointmentData
+  });
+  console.log('💳 PAYMENT SCREEN - Final data used:', {
+    doctor,
+    selectedDate,
+    selectedTime,
+    selectedTimeSlot,
+    reason,
+    token,
+    personalInfo,
+    appointmentData,
+    amount
+  });
+
+  // Specific amount debugging
+  console.log('💰 AMOUNT DEBUG - Route amount:', routeAmount);
+  console.log('💰 AMOUNT DEBUG - Redux amount:', appointmentDetails.formData.amount);
+  console.log('💰 AMOUNT DEBUG - SelectedTimeSlot object:', selectedTimeSlot);
+  console.log('💰 AMOUNT DEBUG - SelectedTimeSlot amount field:', selectedTimeSlot?.amount);
+  console.log('💰 AMOUNT DEBUG - SelectedTimeSlot price field:', selectedTimeSlot?.price);
+  console.log('💰 AMOUNT DEBUG - SelectedTimeSlot fee field:', selectedTimeSlot?.fee);
+  console.log('💰 AMOUNT DEBUG - SelectedTimeSlot cost field:', selectedTimeSlot?.cost);
+  console.log('💰 AMOUNT DEBUG - Final amount used:', amount);
+  console.log('💰 AMOUNT DEBUG - Amount type:', typeof amount);
+  console.log('💰 AMOUNT DEBUG - Amount value:', amount);
 
   const [selectedPayment, setSelectedPayment] = useState('Full Payment');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('UPI');
+
+  // Set default amount if none is found
+  useEffect(() => {
+    if (!amount || amount === '0' || amount === 0) {
+      console.log('⚠️ PAYMENT SCREEN - No amount found, setting default amount of 500');
+      dispatch(setManualAmount(500));
+    }
+  }, [amount, dispatch]);
+
+  // Log amount debugging information
+  useEffect(() => {
+    console.log('💰 PAYMENT SCREEN - Amount debugging:');
+    console.log('  - Route amount:', routeAmount);
+    console.log('  - Redux amount:', appointmentDetails.formData.amount);
+    console.log('  - SelectedTimeSlot:', selectedTimeSlot);
+    console.log('  - Final amount used:', amount);
+    console.log('  - Amount type:', typeof amount);
+    console.log('  - Amount value:', amount);
+  }, [amount, routeAmount, appointmentDetails.formData.amount, selectedTimeSlot]);
 
   const getDoctorImage = (doctor) => {
     if (doctor?.profile_image) {
@@ -81,17 +160,63 @@ const PaymentScreen = ({ navigation, route }) => {
   };
 
   const handlePayNow = () => {
-    // Navigate to payment success screen
-    navigation.navigate('PaymentSuccess', {
-      doctor,
-      selectedDate,
-      selectedTime,
-      reason,
-      token,
-      personalInfo,
-      paymentAmount: selectedPayment === 'Full Payment' ? '₹ 1500' : '₹ 750',
-      paymentMode: selectedPaymentMode
-    });
+    const fullAmount = amount || 1500; // Use amount from Redux or fallback to 1500
+    const halfAmount = Math.round(fullAmount / 2);
+    const finalAmount = selectedPayment === 'Full Payment' ? fullAmount : halfAmount;
+    
+    console.log('💰 PAYMENT CALCULATION:');
+    console.log('  - Original amount:', amount);
+    console.log('  - Full amount (with fallback):', fullAmount);
+    console.log('  - Half amount (calculated):', halfAmount);
+    console.log('  - Selected payment type:', selectedPayment);
+    
+    // Show confirmation dialog
+    Alert.alert(
+      'Confirm Payment',
+      `Are you sure you want to proceed with ${selectedPayment} of ₹${finalAmount}?\n\nThis action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Proceed',
+          style: 'default',
+          onPress: () => {
+            const paymentData = {
+              doctor,
+              selectedDate,
+              selectedTime,
+              selectedTimeSlot,
+              reason,
+              token,
+              personalInfo,
+              appointmentData,
+              paymentAmount: `₹ ${finalAmount}`,
+              paymentMode: selectedPaymentMode,
+              actualAmount: finalAmount
+            };
+            
+            console.log('💳 PAYMENT SCREEN - Processing payment:', paymentData);
+            console.log('💰 PAYMENT SCREEN - Amount from Redux:', amount);
+            console.log('💳 PAYMENT SCREEN - Selected payment type:', selectedPayment);
+            console.log('💳 PAYMENT SCREEN - Final payment amount:', paymentData.paymentAmount);
+            console.log('💳 PAYMENT SCREEN - Actual amount value:', paymentData.actualAmount);
+            
+            // Navigate to payment success screen and reset navigation stack
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'PaymentSuccess',
+                  params: paymentData
+                }
+              ]
+            });
+          },
+        },
+      ]
+    );
   };
 
   const PaymentOption = ({ title, amount, isSelected, onPress, color }) => (
@@ -120,7 +245,7 @@ const PaymentScreen = ({ navigation, route }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       {/* Header */}
@@ -129,7 +254,7 @@ const PaymentScreen = ({ navigation, route }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Icon name="arrow-left" size={20} color="#333" />
+          <Icon name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>
         <View style={styles.placeholder} />
@@ -167,7 +292,7 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={styles.progressStep}>
             <View style={styles.stepCircleContainer}>
               <Image 
-                source={require('../Assets/Images/status1.png')} 
+                source={require('../Assets/Images/status.png')} 
                 style={styles.statusImage}
                 resizeMode="contain"
               />
@@ -198,13 +323,15 @@ const PaymentScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
 
+       
+
         {/* Payment Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment</Text>
           
           <PaymentOption
             title="Full Payment"
-            amount="₹ 1500"
+            amount={`₹ ${amount || 1500}`}
             isSelected={selectedPayment === 'Full Payment'}
             onPress={() => setSelectedPayment('Full Payment')}
             color="#4CAF50"
@@ -212,7 +339,7 @@ const PaymentScreen = ({ navigation, route }) => {
           
           <PaymentOption
             title="Partial Payment"
-            amount="₹ 750"
+            amount={`₹ ${Math.round((amount || 1500) / 2)}`}
             isSelected={selectedPayment === 'Partial Payment'}
             onPress={() => setSelectedPayment('Partial Payment')}
             color="#FF9800"
@@ -221,7 +348,7 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={styles.totalAmountContainer}>
             <Text style={styles.totalAmountLabel}>Total Amount</Text>
             <Text style={styles.totalAmountValue}>
-              {selectedPayment === 'Full Payment' ? '₹ 1500' : '₹ 750'}
+              {selectedPayment === 'Full Payment' ? `₹ ${amount }` : `₹ ${Math.round((amount || 1500) / 2)}`}
             </Text>
           </View>
         </View>
@@ -277,24 +404,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: wp('5%'),
     paddingVertical: hp('2%'),
-    backgroundColor: '#fff',
+    backgroundColor: '#0D6EFD',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#0D6EFD',
   },
   backButton: {
     padding: wp('2%'),
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: PoppinsFonts.SemiBold,
+    color: '#fff',
   },
   placeholder: {
     width: wp('10%'),
   },
   progressContainer: {
     backgroundColor: '#f8f9fa',
-    paddingVertical: hp('3%'),
+   // paddingVertical: hp('3%'),
     paddingHorizontal: wp('5%'),
   },
   progressBar: {
@@ -325,7 +452,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   stepLabel: {
-    fontSize: wp('3.5%'),
+    fontSize: wp('3%'),
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
@@ -509,6 +636,32 @@ const styles = StyleSheet.create({
     fontSize: wp('4.5%'),
     fontWeight: '600',
     color: '#fff',
+  },
+  inputGroup: {
+    marginBottom: hp('2%'),
+  },
+  inputLabel: {
+    fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Medium,
+    color: '#333',
+    marginBottom: hp('1%'),
+  },
+  inputField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('1.5%'),
+  },
+  inputIcon: {
+    marginRight: wp('3%'),
+  },
+  inputText: {
+    flex: 1,
+    fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Regular,
+    color: '#333',
   },
 });
 

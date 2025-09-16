@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -9,24 +8,69 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { PoppinsFonts } from '../config/fonts';
+import { useSelector } from 'react-redux';
+import { formatDateForDisplay } from '../utils/dateUtils';
 
 const BookingConfirmScreen = ({ navigation, route }) => {
+  // Get data from Redux slice
+  const appointmentDetails = useSelector(state => state.appointmentDetails);
+  
+  // Fallback to route params if Redux data is not available
   const { 
-    doctor, 
-    selectedDate, 
-    selectedTime, 
-    reason, 
-    token,
-    personalInfo 
+    doctor: routeDoctor, 
+    selectedDate: routeSelectedDate, 
+    selectedTime: routeSelectedTime, 
+    selectedTimeSlot: routeSelectedTimeSlot,
+    reason: routeReason, 
+    token: routeToken,
+    personalInfo: routePersonalInfo,
+    appointmentData: routeAppointmentData
   } = route.params || {};
 
-  // Generate a random token if not provided
-  const randomToken = token || Math.floor(Math.random() * 100).toString().padStart(2, '0');
+  // Use Redux data as primary source, fallback to route params
+  const doctor = appointmentDetails.formData.doctor || routeDoctor;
+  const selectedDate = appointmentDetails.formData.selectedDate || routeSelectedDate;
+  const selectedTime = appointmentDetails.formData.selectedTime || routeSelectedTime;
+  const selectedTimeSlot = appointmentDetails.formData.selectedTimeSlot || routeSelectedTimeSlot;
+  const reason = appointmentDetails.formData.reason || routeReason;
+  const token = appointmentDetails.formData.token || routeToken;
+  const personalInfo = appointmentDetails.formData.personalInfo || routePersonalInfo;
+  const appointmentData = appointmentDetails.currentAppointment || routeAppointmentData;
+  const amount = appointmentDetails.formData.amount || selectedTimeSlot?.amount;
+
+  // Debug: Log all data sources
+  console.log('📋 BOOKING CONFIRM - Redux data:', appointmentDetails.formData);
+  console.log('📋 BOOKING CONFIRM - Route params:', {
+    doctor: routeDoctor,
+    selectedDate: routeSelectedDate,
+    selectedTime: routeSelectedTime,
+    selectedTimeSlot: routeSelectedTimeSlot,
+    reason: routeReason,
+    token: routeToken,
+    personalInfo: routePersonalInfo,
+    appointmentData: routeAppointmentData
+  });
+  console.log('📋 BOOKING CONFIRM - Final data used:', {
+    doctor,
+    selectedDate,
+    selectedTime,
+    selectedTimeSlot,
+    reason,
+    token,
+    personalInfo,
+    appointmentData,
+    amount
+  });
+
+  // Use token from selectedTimeSlot or fallback to token or generate random
+  const randomToken = selectedTimeSlot?.token || token || Math.floor(Math.random() * 100).toString().padStart(2, '0');
 
   const getDoctorImage = (doctor) => {
     if (doctor?.profile_image) {
@@ -80,33 +124,22 @@ const BookingConfirmScreen = ({ navigation, route }) => {
     return stars;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '04th, June, Thursday, 2025';
-    
-    const date = new Date(dateString);
-    const options = { 
-      day: 'numeric', 
-      month: 'long', 
-      weekday: 'long', 
-      year: 'numeric' 
-    };
-    return date.toLocaleDateString('en-US', options);
-  };
+  // Use the centralized date utility function
+  const formatDate = formatDateForDisplay;
 
-  const handleContinueToPayment = () => {
-    // Navigate to payment screen
-    navigation.navigate('Payment', {
-      doctor,
-      selectedDate,
-      selectedTime,
-      reason,
-      token: randomToken,
-      personalInfo
-    });
+  // Format time for display - prioritize selectedTimeSlot
+  const formatTime = () => {
+    if (selectedTimeSlot?.start_time) {
+      return selectedTimeSlot.start_time;
+    }
+    if (selectedTime) {
+      return selectedTime;
+    }
+    return '10:30 AM';
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       {/* Header */}
@@ -132,20 +165,7 @@ const BookingConfirmScreen = ({ navigation, route }) => {
                 resizeMode="contain"
               />
             </View>
-            <Text style={[styles.stepLabel, styles.inactiveStepText]}>User Detail</Text>
-          </View>
-          
-          <View style={styles.progressLine} />
-          
-          <View style={styles.progressStep}>
-            <View style={styles.stepCircleContainer}>
-              <Image 
-                source={require('../Assets/Images/status1.png')} 
-                style={styles.statusImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.stepLabel}>Time & Date</Text>
+            <Text style={styles.stepLabel}>User Detail</Text>
           </View>
           
           <View style={styles.progressLine} />
@@ -158,19 +178,36 @@ const BookingConfirmScreen = ({ navigation, route }) => {
                 resizeMode="contain"
               />
             </View>
+            <Text style={[styles.stepLabel, styles.inactiveStepText]}>Time & Date</Text>
+          </View>
+          
+          <View style={styles.progressLine} />
+          
+          <View style={styles.progressStep}>
+            <View style={styles.stepCircleContainer}>
+              <Image 
+                source={require('../Assets/Images/status1.png')} 
+                style={styles.statusImage}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={[styles.stepLabel, styles.inactiveStepText]}>Payment</Text>
           </View>
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Doctor Information Card */}
+        {/* Doctor Card */}
         <View style={styles.doctorCard}>
-          <Image source={getDoctorImage(doctor)} style={styles.doctorImage} />
+          <Image 
+            source={getDoctorImage(doctor)} 
+            style={styles.doctorImage}
+            resizeMode="cover"
+          />
           <View style={styles.doctorInfo}>
             <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
             <Text style={styles.doctorSpecialty}>
-              {getDoctorSpecialty(doctor)} From {doctor?.clinic_name || 'Kl Clinic'}
+              {getDoctorSpecialty(doctor)} From {doctor?.clinic_name || 'KL Clinic'}
             </Text>
             <View style={styles.ratingContainer}>
               <View style={styles.stars}>
@@ -188,45 +225,149 @@ const BookingConfirmScreen = ({ navigation, route }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Time & Date</Text>
           
-          <View style={styles.infoContainer}>
-            <View style={styles.infoIcon}>
-              <Icon name="clock" size={16} color="#0D6EFD" />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Time</Text>
-              <Text style={styles.infoValue}>{selectedTime || '10:30 AM'}</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoContainer}>
-            <View style={styles.infoIcon}>
-              <Icon name="calendar" size={16} color="#0D6EFD" />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Date</Text>
-              <Text style={styles.infoValue}>{formatDate(selectedDate)}</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Time</Text>
+            <View style={styles.inputField}>
+              <Image
+                source={require('../Assets/Images/Time.png')}
+                style={[styles.inputIcon, { width: 16, height: 16 }]}
+                resizeMode="contain"
+              />
+               <Text style={styles.inputText}>{formatTime()}</Text>
             </View>
           </View>
-        </View>
-
-        {/* Token Number Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Token Number</Text>
           
-          <View style={styles.infoContainer}>
-            <View style={styles.infoIcon}>
-              <Icon name="star" size={16} color="#0D6EFD" />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoValue}>{randomToken}</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Date</Text>
+            <View style={styles.inputField}>
+              <Image
+                source={require('../Assets/Images/Date.png')}
+                style={[styles.inputIcon, { width: 16, height: 16 }]}
+                resizeMode="contain"
+              />
+              <Text style={styles.inputText}>{formatDate(selectedDate)}</Text>
             </View>
           </View>
         </View>
+
+         {/* Token Number Section */}
+         <View style={styles.section}>
+           <Text style={styles.sectionTitle}>Token Number</Text>
+           <View style={styles.inputGroup}>
+             <View style={styles.inputField}>
+             <Image
+                 source={require('../Assets/Images/token.png')}
+                 style={[styles.inputIcon, { width: 16, height: 16 }]}
+                 resizeMode="contain"
+               />
+               <Text style={styles.inputText}>{randomToken}</Text>
+             </View>
+           </View>
+         </View>
+
+         {/* Personal Information Section */}
+         {personalInfo && (
+           <View style={styles.section}>
+             <Text style={styles.sectionTitle}>Personal Information</Text>
+             
+             <View style={styles.inputGroup}>
+               <Text style={styles.inputLabel}>Full Name</Text>
+               <View style={styles.inputField}>
+                 <Image
+                   source={require('../Assets/Images/user1.png')}
+                   style={[styles.inputIcon, { width: 16, height: 16 }]}
+                   resizeMode="contain"
+                 />
+                 <Text style={styles.inputText}>{personalInfo.fullName}</Text>
+               </View>
+             </View>
+             
+             <View style={styles.inputGroup}>
+               <Text style={styles.inputLabel}>Mobile Number</Text>
+               <View style={styles.inputField}>
+                 <Image
+                   source={require('../Assets/Images/phone2.png')}
+                   style={[styles.inputIcon, { width: 16, height: 16 }]}
+                   resizeMode="contain"
+                 />
+                 <Text style={styles.inputText}>{personalInfo.mobileNumber}</Text>
+               </View>
+             </View>
+             
+             <View style={styles.inputGroup}>
+               <Text style={styles.inputLabel}>Email</Text>
+               <View style={styles.inputField}>
+                 <Image
+                   source={require('../Assets/Images/mail1.png')}
+                   style={[styles.inputIcon, { width: 16, height: 16 }]}
+                   resizeMode="contain"
+                 />
+                 <Text style={styles.inputText}>{personalInfo.email}</Text>
+               </View>
+             </View>
+           </View>
+         )}
+
+         {/* Reason for Visit Section */}
+         {reason && (
+           <View style={styles.section}>
+             <Text style={styles.sectionTitle}>Reason for Visit</Text>
+             <View style={styles.inputGroup}>
+               <View style={styles.reasonField}>
+                 <Text style={styles.reasonText}>{reason}</Text>
+               </View>
+             </View>
+           </View>
+         )}
+
+         {/* Payment Amount Section */}
+         {(amount || selectedTimeSlot?.amount) && (
+           <View style={styles.section}>
+             <Text style={styles.sectionTitle}>Payment Amount</Text>
+             <View style={styles.inputGroup}>
+               <View style={styles.inputField}>
+                 <Image
+                   source={require('../Assets/Images/status1.png')}
+                   style={[styles.inputIcon, { width: 16, height: 16 }]}
+                   resizeMode="contain"
+                 />
+                 <Text style={styles.inputText}>₹{amount || selectedTimeSlot?.amount}</Text>
+               </View>
+             </View>
+           </View>
+         )}
+
+        
+
+        
+         
+           
+        
       </ScrollView>
 
       {/* Continue Button */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinueToPayment}>
+        <TouchableOpacity 
+          style={styles.continueButton}
+          onPress={() => {
+            const paymentData = {
+              doctor: doctor,
+              selectedDate: selectedDate,
+              selectedTime: selectedTime,
+              selectedTimeSlot: selectedTimeSlot,
+              reason: reason,
+              token: randomToken,
+              personalInfo: personalInfo,
+              amount: amount || '0',
+              appointmentData: appointmentData
+            };
+            
+            console.log('💳 BOOKING CONFIRM - Navigating to Payment with data:', paymentData);
+            console.log('💰 BOOKING CONFIRM - Amount from Redux slice:', amount);
+            
+            navigation.navigate('Payment', paymentData);
+          }}
+        >
           <Text style={styles.continueButtonText}>Continue to Payment</Text>
         </TouchableOpacity>
       </View>
@@ -254,7 +395,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
   },
   placeholder: {
@@ -262,50 +403,54 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     backgroundColor: '#f8f9fa',
-    paddingVertical: hp('3%'),
+    paddingVertical: hp('1%'),
     paddingHorizontal: wp('5%'),
   },
   progressBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: wp('6%'),
-    paddingBottom: hp('0%'),
   },
   progressStep: {
     alignItems: 'center',
-    flex: 1,
   },
-  stepCircleContainer: {
+  stepCircle: {
     width: wp('8%'),
     height: wp('8%'),
+    borderRadius: wp('4%'),
+    backgroundColor: '#E0E0E0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: hp('1.5%'),
-    position: 'relative',
+    marginBottom: hp('1%'),
   },
-  statusImage: {
-    width: wp('6%'),
-    height: wp('6%'),
-    position: 'absolute',
+  stepCircleInner: {
+    width: wp('4%'),
+    height: wp('4%'),
+    borderRadius: wp('2%'),
+    backgroundColor: '#E0E0E0',
   },
-  inactiveStepText: {
-    color: '#666',
+  activeStep: {
+    backgroundColor: '#0D6EFD',
+  },
+  activeStepInner: {
+    backgroundColor: '#0D6EFD',
   },
   stepLabel: {
-    fontSize: wp('3.5%'),
-    fontWeight: '600',
-    color: '#333',
+    fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Medium,
+    color: '#666',
     textAlign: 'center',
-    marginBottom: hp('1%'),
+  },
+  activeStepText: {
+    color: '#0D6EFD',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   progressLine: {
     flex: 1,
     height: 2,
     backgroundColor: '#E0E0E0',
-    marginHorizontal: wp('1%'),
-    alignSelf: 'center',
-    marginTop: -wp('9%'),
+    marginHorizontal: wp('2%'),
+    marginTop: -wp('4%'),
   },
   content: {
     flex: 1,
@@ -335,12 +480,13 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('0.5%'),
   },
   doctorSpecialty: {
     fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
     marginBottom: hp('0.5%'),
   },
@@ -354,7 +500,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: wp('3.5%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     color: '#333',
   },
   callButton: {
@@ -374,34 +520,38 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('2%'),
   },
-  infoContainer: {
+  inputGroup: {
+    marginBottom: hp('2%'),
+  },
+  inputLabel: {
+    fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Medium,
+    color: '#333',
+    marginBottom: hp('1%'),
+  },
+  inputField: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: hp('1.5%'),
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('1.5%'),
   },
-  infoIcon: {
-    width: wp('8%'),
-    alignItems: 'center',
+  inputIcon: {
+    marginRight: wp('3%'),
   },
-  infoContent: {
+  inputText: {
     flex: 1,
-  },
-  infoLabel: {
-    fontSize: wp('3.5%'),
-    color: '#666',
-    marginBottom: hp('0.5%'),
-  },
-  infoValue: {
     fontSize: wp('4%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Regular,
     color: '#333',
   },
   buttonContainer: {
@@ -414,13 +564,85 @@ const styles = StyleSheet.create({
   continueButton: {
     backgroundColor: '#0D6EFD',
     borderRadius: wp('2%'),
-    paddingVertical: hp('2%'),
+    paddingVertical: hp('1.5%'),
     alignItems: 'center',
   },
   continueButtonText: {
-    fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
+  },progressContainer: {
+    backgroundColor: '#f8f9fa',
+    paddingVertical: hp('.5%'),
+    paddingHorizontal: wp('5%'),
+  },
+  progressBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: wp('6%'),
+    paddingBottom: hp('0%'), // Add padding to center lines with images
+  },
+  progressStep: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepCircleContainer: {
+    width: wp('8%'),
+    height: wp('8%'),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: hp('1.5%'),
+    position: 'relative',
+  },
+  statusImage: {
+    width: wp('6%'),
+    height: wp('6%'),
+    position: 'absolute',
+  },
+  inactiveStepText: {
+    color: '#666',
+  },
+  stepLabel: {
+    fontSize: wp('3%'),
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  progressLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: wp('1%'),
+    alignSelf: 'center',
+    marginTop:- wp('9%'), // Move line up to align with smaller images
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: wp('5%'),
+  },
+  reasonField: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+    padding: wp('3%'),
+    minHeight: hp('8%'),
+  },
+  reasonText: {
+    fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Regular,
+    color: '#333',
+    lineHeight: wp('5%'),
+  },
+  debugContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+    padding: wp('3%'),
+  },
+  debugText: {
+    fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
+    color: '#666',
+    marginBottom: hp('0.5%'),
   },
 });
 

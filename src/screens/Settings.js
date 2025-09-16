@@ -7,8 +7,10 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  SafeAreaView,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -16,6 +18,35 @@ import {
 } from 'react-native-responsive-screen';
 
 const Settings = ({ navigation }) => {
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('otpResponse');
+              console.log('User logged out, cleared AsyncStorage');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Error during logout:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const settingsSections = [
     {
       title: 'Account',
@@ -92,7 +123,7 @@ const Settings = ({ navigation }) => {
           id: 'logout',
           title: 'Logout',
           icon: 'sign-out-alt',
-          onPress: () => console.log('Logout'),
+          onPress: handleLogout,
         },
       ],
     },
@@ -105,16 +136,32 @@ const Settings = ({ navigation }) => {
       onPress={item.onPress}
     >
       <View style={styles.settingItemLeft}>
-        <Icon name={item.icon} size={20} color="#333333" style={styles.settingIcon} />
-        <Text style={styles.settingText}>{item.title}</Text>
+        <Icon 
+          name={item.icon} 
+          size={20} 
+          color={item.id === 'logout' ? '#FF6B6B' : '#333333'} 
+          style={styles.settingIcon} 
+        />
+        <Text style={[
+          styles.settingText,
+          item.id === 'logout' && styles.logoutText
+        ]}>
+          {item.title}
+        </Text>
       </View>
       <Icon name="chevron-right" size={16} color="#8E8E93" />
     </TouchableOpacity>
   );
 
   const renderSection = (section) => (
-    <View key={section.title} style={styles.section}>
-      <View style={styles.sectionCard}>
+    <View key={section.title} style={[
+      styles.section,
+      section.title === 'Logout' && styles.logoutSection
+    ]}>
+      <View style={[
+        styles.sectionCard,
+        section.title === 'Logout' && styles.logoutCard
+      ]}>
         <Text style={styles.sectionTitle}>{section.title}</Text>
         {section.items.map((item, index) => 
           renderSettingItem(item, index === section.items.length - 1)
@@ -124,7 +171,7 @@ const Settings = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       
       {/* Header */}
@@ -139,7 +186,11 @@ const Settings = ({ navigation }) => {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {settingsSections.map(renderSection)}
       </ScrollView>
     </SafeAreaView>
@@ -172,7 +223,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: wp('5%'),
     paddingTop: hp('2%'),
-    marginBottom: hp('8%'),
+    paddingBottom: hp('25%'), // Increased padding to ensure logout button is completely visible above bottom tab
   },
   section: {
     marginBottom: hp('2%'),
@@ -220,6 +271,17 @@ const styles = StyleSheet.create({
     fontSize: wp('4%'),
     color: '#333333',
     flex: 1,
+  },
+  logoutSection: {
+    marginBottom: hp('20%'), // Extra margin for logout section to ensure visibility
+  },
+  logoutCard: {
+    borderColor: '#FF6B6B', // Red border for logout card
+    borderWidth: 1,
+  },
+  logoutText: {
+    color: '#FF6B6B', // Red text color for logout
+    fontWeight: 'bold',
   },
 });
 

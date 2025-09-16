@@ -147,31 +147,9 @@ console.log(doctors)
   const filteredDoctors = doctors || [];
 
   const renderStars = (rating) => {
-    const numRating = parseFloat(rating) ;
-    const stars = [];
-    const fullStars = Math.floor(numRating);
-    const hasHalfStar = numRating % 1 !== 0;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <Icon key={i} name="star" size={12} color="#FFA500" />
-      );
-    }
-
-    if (hasHalfStar) {
-      stars.push(
-        <Icon key="half" name="star-half-alt" size={12} color="#FFA500" />
-      );
-    }
-
-    const emptyStars = 5 - Math.ceil(numRating);
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(
-        <Icon key={`empty-${i}`} name="star" size={12} color="#E0E0E0" />
-      );
-    }
-
-    return stars;
+    return (
+      <Icon name="star" size={12} color="#FFA500" />
+    );
   };
 
   // Memoized image source to prevent unnecessary re-renders
@@ -232,12 +210,18 @@ console.log(doctors)
         style={styles.doctorCard}
         onPress={handleDoctorPress}
       >
-        <View style={styles.doctorImageContainer}>
+        <ImageBackground
+          source={getDoctorImage(doctor)}
+          style={styles.doctorImage}
+          imageStyle={styles.doctorImageStyle}
+          onError={() => handleImageError(doctorId)}
+          onLoad={() => handleImageLoad(doctorId)}
+          onLoadStart={() => handleImageLoadStart(doctorId)}
+        >
           {/* Loading indicator */}
           {isLoading && (
             <View style={styles.imageLoadingContainer}>
               <ActivityIndicator size="large" color="#0D6EFD" />
-              <Text style={styles.loadingText}>Loading...</Text>
             </View>
           )}
           
@@ -245,27 +229,10 @@ console.log(doctors)
           {hasError && (
             <View style={styles.imageErrorContainer}>
               <Icon name="user-md" size={40} color="#0D6EFD" />
-              <Text style={styles.errorText}>Image unavailable</Text>
             </View>
           )}
           
-          <Image
-            source={getDoctorImage(doctor)}
-            style={[
-              styles.doctorImage,
-              (isLoading || hasError) && styles.hiddenImage
-            ]}
-            onError={() => handleImageError(doctorId)}
-            onLoad={() => handleImageLoad(doctorId)}
-            onLoadStart={() => handleImageLoadStart(doctorId)}
-            resizeMode="cover"
-            // Performance optimizations
-            fadeDuration={200}
-            progressiveRenderingEnabled={true}
-            removeClippedSubviews={true}
-          />
-          
-          <View style={styles.cardOverlay}>
+          <View style={styles.imageOverlay}>
             <View style={styles.ratingContainer}>
               <View style={styles.starsContainer}>
                 {renderStars(doctor.rating || 4.0)}
@@ -278,7 +245,7 @@ console.log(doctors)
               <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
             </View>
           </View>
-        </View>
+        </ImageBackground>
       </TouchableOpacity>
     );
   };
@@ -287,32 +254,31 @@ console.log(doctors)
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       
-      <BackButton onPress={() => navigation.goBack()} />
       
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>
-            {selectedCategory ? `${selectedCategory} Specialists` : 'Lets Find Your Problem?'}
-          </Text>
-          <Text style={styles.headerSubtitle}>
-            {selectedCategory ? 'Select the Doctor' : 'Select the Doctor'}
-          </Text>
+          <Text style={styles.headerTitle}>Lets Find Your Problem?</Text>
+          <Text style={styles.headerSubtitle}>Select the Doctor</Text>
         </View>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Icon name="search" size={16} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by Doctor N..."
-            placeholderTextColor="#666"
-            value={searchQuery}
-            onChangeText={(text) => dispatch(setSearchQuery(text))}
-          />
-        </View>
+        <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
+        <TextInput
+          placeholder="Search by Doctor N..."
+          placeholderTextColor="#888"
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={(text) => dispatch(setSearchQuery(text))}
+        />
       </View>
 
       {/* Doctors Grid */}
@@ -324,9 +290,7 @@ console.log(doctors)
         {filteredDoctors.length > 0 ? (
           <View style={styles.doctorsGrid}>
             {filteredDoctors.map((doctor, index) => (
-              <View key={doctor.id} style={styles.doctorCardWrapper}>
-                {renderDoctorCard({ item: doctor, index })}
-              </View>
+              renderDoctorCard({ item: doctor, index })
             ))}
           </View>
         ) : (
@@ -374,21 +338,27 @@ console.log(doctors)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
   },
   header: {
     backgroundColor: '#0D6EFD',
-    paddingHorizontal: wp('5%'),
-    paddingTop: hp('2%'),
-    paddingBottom: hp('3%'),
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: hp('1%'),
+    paddingBottom: hp('10%'),
+    position: 'relative',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   backButton: {
-    marginRight: wp('4%'),
+    position: 'absolute',
+    left: wp('5%'),
+    top: hp('2%'),
+    zIndex: 1000,
+    padding: wp('2%'),
   },
   headerTextContainer: {
-    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: wp('5%'),
+    paddingTop: hp('1%'),
   },
   headerTitle: {
     fontSize: wp('5%'),
@@ -399,23 +369,24 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: wp('4%'),
     color: '#FFFFFF',
+    opacity: 0.9,
   },
   searchContainer: {
-    paddingHorizontal: wp('5%'),
-    paddingVertical: hp('2%'),
-  },
-  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: wp('2%'),
+    marginHorizontal: wp('5%'),
+    marginTop: hp('-8%'),
+    marginBottom: hp('4%'),
     paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1.5%'),
-    elevation: 2,
+    paddingVertical: hp('.5%'),
+    borderRadius: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
   },
   searchIcon: {
     marginRight: wp('3%'),
@@ -429,42 +400,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   doctorsGridContainer: {
-    paddingHorizontal: wp('4%'),
-    paddingBottom: hp('2%'),
+    paddingHorizontal: wp('5%'),
+    paddingBottom: hp('5%'),
   },
   doctorsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  doctorCardWrapper: {
-    width: '48%',
-    marginBottom: hp('2%'),
-  },
   doctorCard: {
-    height: wp('65%'),
-    borderRadius: wp('4%'),
+    width: (wp('100%') - wp('12%')) / 2,
+    height: ((wp('100%') - wp('12%')) / 2) * 1.25,
+    marginBottom: hp('2%'),
+    borderRadius: 15,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-  },
-  doctorImageContainer: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    position: 'relative',
   },
   doctorImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    backgroundColor: '#f0f0f0', // Fallback background color
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  hiddenImage: {
-    opacity: 0,
+  doctorImageStyle: {
+    borderRadius: 15,
+  },
+  imageOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-end',
+    padding: wp('4%'),
+  },
+  ratingContainer: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    marginRight: wp('1%'),
+  },
+  ratingText: {
+    fontSize: wp('3%'),
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: wp('1%'),
+  },
+  doctorInfo: {
+    marginBottom: hp('1%'),
+  },
+  doctorName: {
+    color: '#FFFFFF',
+    fontSize: wp('4.5%'),
+    fontWeight: 'bold',
+    marginBottom: hp('0.3%'),
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  doctorSpecialty: {
+    color: '#FFFFFF',
+    fontSize: wp('3.5%'),
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   imageLoadingContainer: {
     position: 'absolute',
@@ -477,12 +485,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     zIndex: 1,
   },
-  loadingText: {
-    marginTop: wp('2%'),
-    fontSize: wp('3.5%'),
-    color: '#0D6EFD',
-    fontWeight: '500',
-  },
   imageErrorContainer: {
     position: 'absolute',
     top: 0,
@@ -493,64 +495,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
     zIndex: 1,
-  },
-  errorText: {
-    marginTop: wp('2%'),
-    fontSize: wp('3.5%'),
-    color: '#666',
-    textAlign: 'center',
-  },
-  cardOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: wp('4%'),
-    justifyContent: 'space-between',
-    backgroundColor: 'transparent',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: wp('3%'),
-    paddingVertical: hp('0.8%'),
-    borderRadius: wp('3%'),
-    marginTop: -wp('3.8%'),
-    marginRight: -wp('3.3%'),
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginRight: wp('1%'),
-  },
-  ratingText: {
-    fontSize: wp('3%'),
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  doctorInfo: {
-    position: 'absolute',
-    bottom: wp('4%'),
-    left: wp('4%'),
-    right: wp('4%'),
-  },
-  doctorName: {
-    fontSize: wp('4.5%'),
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: hp('0.3%'),
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  doctorSpecialty: {
-    fontSize: wp('3.8%'),
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   noResultsContainer: {
     flex: 1,

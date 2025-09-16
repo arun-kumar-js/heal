@@ -10,7 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -109,6 +109,12 @@ const Category = ({ navigation }) => {
       image: require('../Assets/Images/Radiology.png'),
      
     },
+    {
+      id: 15,
+      name: '',
+      image: null,
+      isDummy: true,
+    },
   ];
 
   const filteredCategories = categories.filter(category =>
@@ -121,31 +127,43 @@ const Category = ({ navigation }) => {
     navigation.navigate('DoctorListScreen');
   };
 
-  const renderCategoryCard = (category) => (
-    <TouchableOpacity
-      key={category.id}
-      style={[styles.categoryCard, { backgroundColor: category.bgColor }]}
-      onPress={() => handleCategoryPress(category)}
-    >
-      <View style={styles.imageContainer}>
-        <Image 
-          source={category.image} 
-          style={styles.categoryImage}
-          resizeMode="contain"
-        />
-      </View>
-      <Text style={styles.categoryName}>{category.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderCategoryCard = (category) => {
+    if (category.isDummy) {
+      return <View key={category.id} style={styles.dummyCard} />;
+    }
+    
+    return (
+      <TouchableOpacity
+        key={category.id}
+        style={[styles.categoryCard, { backgroundColor: category.bgColor }]}
+        onPress={() => handleCategoryPress(category)}
+      >
+        <View style={styles.imageContainer}>
+          <Image 
+            source={category.image} 
+            style={styles.categoryImage}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={styles.categoryName}>{category.name}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       
-      <BackButton onPress={() => navigation.goBack()} />
+  
       
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Lets Find Your Problem?</Text>
           <Text style={styles.headerSubtitle}>Select the Department</Text>
@@ -154,16 +172,14 @@ const Category = ({ navigation }) => {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Icon name="search" size={16} color="#8E8E93" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by Department"
-            placeholderTextColor="#8E8E93"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+        <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
+        <TextInput
+          placeholder="Search by Department"
+          placeholderTextColor="#888"
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
       </View>
 
       {/* Categories Grid */}
@@ -179,43 +195,54 @@ const Category = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F5F5F5',
   },
   header: {
     backgroundColor: '#0D6EFD',
-    paddingTop: hp('2%'),
-    paddingBottom: hp('3%'),
-    paddingHorizontal: wp('5%'),
+    paddingTop: hp('1%'),
+    paddingBottom: hp('8%'),
+    position: 'relative',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: wp('5%'),
+  },
+  backButton: {
+    marginRight: wp('4%'),
+    padding: wp('2%'),
   },
   headerContent: {
     flex: 1,
-    marginTop: hp('3%'), // Add top margin to account for back button
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: wp('6%'),
+    fontSize: wp('5%'),
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: hp('0.5%'),
   },
   headerSubtitle: {
-    fontSize: wp('3.5%'),
+    fontSize: wp('4%'),
     color: '#FFFFFF',
     opacity: 0.9,
   },
   searchContainer: {
-    paddingHorizontal: wp('5%'),
-    paddingVertical: hp('2%'),
-    backgroundColor: '#FFFFFF',
-  },
-  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: wp('3%'),
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: wp('5%'),
+    marginTop: hp('-7%'),
+    marginBottom: hp('2%'),
     paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1.5%'),
+    paddingVertical: hp('0.5%'),
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
   },
   searchIcon: {
     marginRight: wp('3%'),
@@ -223,7 +250,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: wp('4%'),
-    color: '#333333',
+    color: '#333',
   },
   content: {
     flex: 1,
@@ -245,6 +272,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
+  dummyCard: {
+    width: wp('28%'),
+    aspectRatio: 1,
+    marginBottom: hp('2%'),
+  },
   imageContainer: {
     width: wp('12%'),
     height: wp('12%'),
@@ -258,11 +290,11 @@ const styles = StyleSheet.create({
     marginBottom: hp('3%'),
   },
   categoryName: {
-    fontSize: wp('3.2%'),
+    fontSize: wp('3.%'),
     fontWeight: '600',
     color: '#333333',
     textAlign: 'center',
-    lineHeight: wp('4%'),
+    
   },
 });
 
