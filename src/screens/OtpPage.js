@@ -23,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { OTP_URL, basicAuth } from '../config/config.js';
 import Toast from 'react-native-toast-message';
 import { saveOTPResponse, getOTPResponse, clearOTPData } from '../utils/otpStorage';
+import { PoppinsFonts } from '../config/fonts';
 const OTP_LENGTH = 4;
 
 const OTPScreen = () => {
@@ -227,8 +228,7 @@ const styles = StyleSheet.create({
     height: hp('55%'),
   },
   welcomeText: {
-    fontFamily: 'Poppins', // Make sure Poppins is linked correctly
-    fontWeight: '900', // Equivalent to Black
+    fontFamily: PoppinsFonts.Black,
     fontSize: wp('8%'), // Approximate 32px, responsive
    
     letterSpacing: 0, // 0% letter spacing
@@ -236,8 +236,7 @@ const styles = StyleSheet.create({
     color: '#222', // or your preferred color
   },
   healtoText: {
-    fontFamily: 'Poppins', // Make sure this font is linked correctly
-    fontWeight: '900', // equivalent to Black
+    fontFamily: PoppinsFonts.Black,
     fontSize: wp('8%'), // responsive approximation of 32px
    
    
@@ -245,8 +244,7 @@ const styles = StyleSheet.create({
     color: '#1977F3',
   },
   subText: {
-    fontFamily: 'Poppins', // Make sure Poppins is linked correctly
-    fontWeight: '500', // Medium weight
+    fontFamily: PoppinsFonts.Medium,
     fontSize: wp('3.5%'), // Approx 14px responsive
    
     letterSpacing: 0, // 0px
@@ -267,7 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F6F6',
     marginHorizontal: wp('2.2%'),
     fontSize: wp('7.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#000',
     textAlign: 'center',
     shadowColor: '#000',
@@ -289,8 +287,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonText: {
-    fontFamily: 'Poppins', // Make sure Poppins Bold is linked in your project
-    fontWeight: '700', // Bold
+    fontFamily: PoppinsFonts.Bold,
     fontSize: wp('3.5%'), // Approx 14px, responsive
     lineHeight: wp('3.5%'), // 100% line-height
     letterSpacing: 0, // 0 spacing

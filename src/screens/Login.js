@@ -105,8 +105,7 @@ const Login = ({ navigation }) => {
                 <TextInput
                   style={{
                     flex: 1,
-                    fontFamily: PoppinsFonts.Regular,
-                    fontWeight: '500',
+                    fontFamily: PoppinsFonts.Medium,
                     fontSize: wp('4%'),
                     letterSpacing: 0,
                     textAlign: 'left',
@@ -180,8 +179,7 @@ const styles = StyleSheet.create({
     marginTop: hp('1%'),
   },
   title: {
-    fontFamily: PoppinsFonts.Bold,
-    fontWeight: '900',
+    fontFamily: PoppinsFonts.Black,
     fontSize: wp('6.5%'),
     lineHeight: wp('8%'),
     letterSpacing: 0,
@@ -192,16 +190,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   titleText: {
-    fontFamily: PoppinsFonts.Bold,
-    fontWeight: '900',
+    fontFamily: PoppinsFonts.Black,
     fontSize: wp('6.5%'),
     lineHeight: wp('8%'),
     letterSpacing: 0,
     color: '#2D3748',
   },
   subtitle: {
-    fontFamily: PoppinsFonts.Regular,
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     fontSize: wp('3.5%'),
     lineHeight: wp('4.5%'),
     letterSpacing: 0,
@@ -233,7 +229,6 @@ const styles = StyleSheet.create({
   },
   smallBoldText: {
     fontFamily: PoppinsFonts.Bold,
-    fontWeight: '700', // Bold
     fontSize: wp('3%'), // Approx 12px responsive
     lineHeight: wp('3%'), // 100% line-height
     letterSpacing: 0, // 0 spacing
@@ -245,7 +240,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1A202C',
     paddingHorizontal: 16,
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
   },
   button: {
     backgroundColor: '#0D63F3',
@@ -258,7 +253,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: PoppinsFonts.Bold,
-    fontWeight: '700', // Bold
     fontSize: wp('3.5%'), // Approx 14px, responsive
     lineHeight: wp('3.5%'), // 100% line-height
     letterSpacing: 0, // 0 spacing
@@ -267,7 +261,6 @@ const styles = StyleSheet.create({
   },
   titleHighlight: {
     fontFamily: PoppinsFonts.Black,
-    fontWeight: '900',
     fontSize: wp('6.5%'),
     lineHeight: wp('8%'),
     letterSpacing: 0,
@@ -280,7 +273,6 @@ const styles = StyleSheet.create({
   },
   titleHighlightMask: {
     fontFamily: PoppinsFonts.Black,
-    fontWeight: '900',
     fontSize: wp('6.5%'),
     lineHeight: wp('8%'),
     letterSpacing: 0,
@@ -292,16 +284,14 @@ const styles = StyleSheet.create({
     flex: 1,
     height: wp('8%'), // Match the font size
   }, welcomeText: {
-    fontFamily: 'Poppins', // Make sure Poppins is linked correctly
-    fontWeight: '900', // Equivalent to Black
+    fontFamily: PoppinsFonts.Black,
     fontSize: wp('8%'), // Approximate 32px, responsive
   
     letterSpacing: 0, // 0% letter spacing
     textAlign: 'center',
     color: '#222', // or your preferred color
   }, healtoText: {
-    fontFamily: 'Poppins', // Make sure this font is linked correctly
-    fontWeight: '900', // equivalent to Black
+    fontFamily: PoppinsFonts.Black,
     fontSize: wp('8%'), // responsive approximation of 32px
    
     textAlign: 'center',

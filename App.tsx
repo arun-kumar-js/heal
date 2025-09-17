@@ -13,6 +13,7 @@ import BottomTap from './src/screens/BottomTap/BottomTap';
 import ClinicsScreen from './src/screens/clinicsScreen';
 import HospitalDetailsScreen from './src/screens/HospitalDetailsScreen';
 import DoctorListScreen from './src/screens/DoctorListScreen';
+import DoctorListByHospitalScreen from './src/screens/DoctorListByHospitalScreen';
 import DoctorAppointmentScreen from './src/screens/DoctorAppointmentScreen';
 import BookingDetailsScreen from './src/screens/BookingDetailsScreen';
 import BookingConfirmScreen from './src/screens/BookingConfirmScreen';
@@ -165,6 +166,11 @@ export default function App() {
         <Stack.Screen
           name="DoctorListScreen"
           component={DoctorListScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DoctorListByHospitalScreen"
+          component={DoctorListByHospitalScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

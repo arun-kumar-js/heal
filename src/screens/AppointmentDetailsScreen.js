@@ -23,6 +23,7 @@ import {
   formatAppointmentDate,
   formatAppointmentTime
 } from '../services/appointmentBookingApi';
+import { PoppinsFonts } from '../config/fonts';
 
 // Helper function to get specialization name from ID
 const getSpecializationName = (specializationId) => {
@@ -169,7 +170,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <View style={[styles.paymentBadge, { 
               backgroundColor: paymentStatus === 'paid' ? '#28a745' : '#ffc107' 
             }]}>
-              <Text style={{color:"black",fontSize:wp('3%'),fontWeight:'600',fontFamily:'Poppins-SemiBold'}}>
+              <Text style={{color:"black",fontSize:wp('3%'),fontFamily:PoppinsFonts.SemiBold}}>
                 {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
               </Text>
             </View>
@@ -315,9 +316,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#FFFFFF',
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   headerRight: {
     width: wp('10%'),
@@ -354,10 +354,9 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
     color: '#333333',
     marginBottom: hp('0.5%'),
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   doctorSpecialty: {
     fontSize: wp('3.5%'),
@@ -372,9 +371,8 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: wp('3.5%'),
     color: '#333333',
-    fontWeight: '600',
     marginRight: wp('2%'),
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   starsContainer: {
     flexDirection: 'row',
@@ -392,10 +390,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
     color: '#333333',
     marginBottom: hp('1.5%'),
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -475,8 +472,7 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: wp('4%'),
     color: '#333333',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
     flex: 1,
   },
   statusBadge: {
@@ -487,8 +483,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: wp('3%'),
     color: '#FFFFFF',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   paymentBadge: {
     paddingHorizontal: wp('2.5%'),
@@ -498,14 +493,12 @@ const styles = StyleSheet.create({
   paymentText: {
     fontSize: wp('4%'),
     color: 'black',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   dateTimeText: {
     fontSize: wp('3.5%'),
     color: '#0D6EFD',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   descriptionText: {
     fontSize: wp('3.5%'),
@@ -517,9 +510,7 @@ const styles = StyleSheet.create({
   },
   amountText: {
     fontSize: wp('3.5%'),
- 
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
     color:"black"
   },
 });

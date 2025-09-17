@@ -24,6 +24,7 @@ import {
   formatAppointmentDate,
   formatAppointmentTime
 } from '../services/appointmentBookingApi';
+import { PoppinsFonts } from '../config/fonts';
 
 const Appointment = ({ navigation }) => {
   const [appointments, setAppointments] = useState([]);
@@ -464,9 +465,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#FFFFFF',
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   headerRight: {
     width: wp('10%'),
@@ -509,10 +509,9 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
     color: '#333333',
     marginBottom: hp('0.5%'),
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   doctorSpecialty: {
     fontSize: wp('3.5%'),
@@ -531,8 +530,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: wp('3.5%'),
     color: '#666666',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   navigateButton: {
     backgroundColor: '#0D6EFD',
@@ -563,9 +561,8 @@ const styles = StyleSheet.create({
   },
   summaryNumber: {
     fontSize: wp('6%'),
-    fontWeight: 'bold',
     color: '#0D6EFD',
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   summaryLabel: {
     fontSize: wp('3%'),
@@ -601,10 +598,9 @@ const styles = StyleSheet.create({
   },
   filterButtonText: {
     fontSize: wp('3.5%'),
-    fontWeight: '600',
     color: '#666666',
     marginLeft: wp('1%'),
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
@@ -619,10 +615,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
     color: '#333333',
     marginLeft: wp('2%'),
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   sectionCount: {
     fontSize: wp('3.5%'),
@@ -664,9 +659,8 @@ const styles = StyleSheet.create({
   appointmentTime: {
     fontSize: wp('3.5%'),
     color: '#0D6EFD',
-    fontWeight: '600',
     marginBottom: hp('1%'),
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -683,8 +677,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: wp('3%'),
     color: '#FFFFFF',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   paymentBadge: {
     paddingHorizontal: wp('2.5%'),
@@ -695,8 +688,7 @@ const styles = StyleSheet.create({
   paymentText: {
     fontSize: wp('2.5%'),
     color: '#FFFFFF',
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   descriptionText: {
     fontSize: wp('3%'),
@@ -709,8 +701,7 @@ const styles = StyleSheet.create({
     fontSize: wp('3%'),
     color: '#0D6EFD',
     marginTop: hp('0.3%'),
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   debugText: {
     fontSize: wp('2.5%'),
@@ -739,11 +730,10 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#dc3545',
     marginTop: hp('2%'),
     marginBottom: hp('1%'),
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   errorMessage: {
     fontSize: wp('4%'),
@@ -761,8 +751,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: wp('4%'),
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   emptyContainer: {
     flex: 1,
@@ -773,11 +762,10 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#6c757d',
     marginTop: hp('2%'),
     marginBottom: hp('1%'),
-    fontFamily: 'Poppins-Bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   emptyMessage: {
     fontSize: wp('4%'),

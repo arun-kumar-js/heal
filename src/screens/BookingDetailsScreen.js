@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
   },
   placeholder: {
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: wp('3%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     textAlign: 'center',
   },
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('0.5%'),
   },
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: wp('3.5%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     color: '#333',
   },
   callButton: {
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('1%'),
   },
@@ -781,7 +781,7 @@ marginTop: hp('1%'),
   },
   cancelButtonText: {
     fontSize: wp('4%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     color: '#666',
   },
   nextButton: {

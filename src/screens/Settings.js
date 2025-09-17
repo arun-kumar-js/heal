@@ -16,6 +16,7 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { PoppinsFonts } from '../config/fonts';
 
 const Settings = ({ navigation }) => {
   const handleLogout = async () => {
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('6%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
   },
   content: {
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333333',
     paddingVertical: hp('2%'),
     paddingHorizontal: wp('4%'),
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#FF6B6B', // Red text color for logout
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
   },
 });
 

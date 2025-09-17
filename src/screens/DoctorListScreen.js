@@ -28,6 +28,7 @@ import {
 } from '../store/selectors/doctorsSelectors';
 import BackButton from '../components/BackButton';
 import { getOTPResponse, getFormattedUserProfile } from '../utils/otpStorage';
+import { PoppinsFonts } from '../config/fonts';
 
 const IMAGE_BASE_URL = 'https://spiderdesk.asia/healto/';
 
@@ -144,8 +145,22 @@ console.log(doctors)
     return typeMap[doctor.type] || 'General Medicine';
   };
 
-  // Use filtered doctors from Redux selector with safety check
-  const filteredDoctors = doctors || [];
+  // Use filtered doctors from Redux selector with comprehensive safety checks
+  const filteredDoctors = useMemo(() => {
+    if (!doctors || !Array.isArray(doctors)) {
+      console.log('Doctors data is not available or not an array:', doctors);
+      return [];
+    }
+    
+    // Filter out any invalid doctor objects
+    return doctors.filter(doctor => {
+      if (!doctor || typeof doctor !== 'object') {
+        console.warn('Filtering out invalid doctor object:', doctor);
+        return false;
+      }
+      return true;
+    });
+  }, [doctors]);
 
   const renderStars = (rating) => {
     return (
@@ -197,17 +212,26 @@ console.log(doctors)
   }, []);
 
   const renderDoctorCard = ({ item: doctor, index }) => {
-    const doctorId = doctor.id.toString();
+    // Add comprehensive null safety checks
+    if (!doctor || typeof doctor !== 'object') {
+      console.warn('Invalid doctor object:', doctor);
+      return null;
+    }
+    
+    const doctorId = (doctor.id || doctor.doctor_id || index).toString();
     const isLoading = imageLoadingStates[doctorId];
     const hasError = imageErrors[doctorId];
     
     const handleDoctorPress = () => {
-      navigation.navigate('DoctorAppointment', { doctor });
+      navigation.navigate('DoctorAppointment', { 
+        doctor,
+        hospitalName: doctor?.clinic_name || 'Hospital'
+      });
     };
     
     return (
       <TouchableOpacity 
-        key={doctor.id} 
+        key={doctorId} 
         style={styles.doctorCard}
         onPress={handleDoctorPress}
       >
@@ -242,8 +266,9 @@ console.log(doctors)
             </View>
             
             <View style={styles.doctorInfo}>
-              <Text style={styles.doctorName}>{doctor.name}</Text>
+              <Text style={styles.doctorName}>{doctor.name || 'Dr. Unknown'}</Text>
               <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
+              <Text style={styles.doctorClinic}>{doctor?.clinic_name || 'Hospital'}</Text>
             </View>
           </View>
         </ImageBackground>
@@ -288,11 +313,29 @@ console.log(doctors)
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.doctorsGridContainer}
       >
-        {filteredDoctors.length > 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0D6EFD" />
+            <Text style={styles.loadingText}>Loading doctors...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Icon name="exclamation-triangle" size={60} color="#d9534f" />
+            <Text style={styles.errorTitle}>Failed to load doctors</Text>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity 
+              style={styles.retryButton}
+              onPress={() => dispatch(fetchDoctors())}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredDoctors.length > 0 ? (
           <View style={styles.doctorsGrid}>
-            {filteredDoctors.map((doctor, index) => (
-              renderDoctorCard({ item: doctor, index })
-            ))}
+            {filteredDoctors.map((doctor, index) => {
+              const card = renderDoctorCard({ item: doctor, index });
+              return card; // This will be null if doctor is invalid, which is fine
+            }).filter(Boolean)} {/* Remove null entries */}
           </View>
         ) : (
           <View style={styles.noResultsContainer}>
@@ -363,7 +406,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     marginBottom: hp('0.5%'),
   },
@@ -452,7 +495,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: wp('3%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     marginLeft: wp('1%'),
   },
@@ -462,7 +505,7 @@ const styles = StyleSheet.create({
   doctorName: {
     color: '#FFFFFF',
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     marginBottom: hp('0.3%'),
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
@@ -474,6 +517,16 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+    marginBottom: hp('0.3%'),
+  },
+  doctorClinic: {
+    color: '#FFFFFF',
+    fontSize: wp('3%'),
+    opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    fontFamily: PoppinsFonts.Regular,
   },
   imageLoadingContainer: {
     position: 'absolute',
@@ -506,7 +559,7 @@ const styles = StyleSheet.create({
   },
   noResultsTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     textAlign: 'center',
     marginTop: hp('2%'),
@@ -532,7 +585,7 @@ const styles = StyleSheet.create({
   },
   debugTitle: {
     fontSize: wp('4%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     marginBottom: hp('1%'),
   },
@@ -540,6 +593,51 @@ const styles = StyleSheet.create({
     fontSize: wp('3.5%'),
     color: '#666',
     marginBottom: hp('0.5%'),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('10%'),
+  },
+  loadingText: {
+    marginTop: hp('2%'),
+    fontSize: wp('4%'),
+    color: '#666',
+    fontFamily: PoppinsFonts.Regular,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('10%'),
+    paddingHorizontal: wp('10%'),
+  },
+  errorTitle: {
+    fontSize: wp('5%'),
+    fontFamily: PoppinsFonts.Bold,
+    color: '#d9534f',
+    marginTop: hp('2%'),
+    marginBottom: hp('1%'),
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: wp('4%'),
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: hp('3%'),
+    lineHeight: wp('5%'),
+  },
+  retryButton: {
+    backgroundColor: '#0D6EFD',
+    paddingHorizontal: wp('8%'),
+    paddingVertical: hp('1.5%'),
+    borderRadius: wp('2%'),
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Bold,
   },
 });
 

@@ -19,6 +19,7 @@ import {
 import { getUserData, saveUserData } from '../utils/userStorage';
 import { getLoginResponse } from '../utils/loginDataStorage';
 import { getOTPResponse } from '../utils/otpStorage';
+import { PoppinsFonts } from '../config/fonts';
 
 const ProfileScreen = ({ navigation }) => {
   const [name, setName] = useState('');
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
   },
   content: {
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: wp('4%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('1%'),
   },
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
   },
   loadingContainer: {

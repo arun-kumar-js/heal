@@ -4,10 +4,10 @@ import { BASE_URL, basicAuth } from '../config/config.js';
 // Get doctors by clinic/hospital ID
 export const fetchDoctorsByClinic = async (clinicId) => {
   try {
-    console.log('Fetching doctors by clinic from API:', `${BASE_URL}clinics/by/doctors`);
+    console.log('Fetching doctors by clinic from API:', `${BASE_URL}doctors/by/clinic`);
     console.log('Clinic ID:', clinicId);
     
-    const response = await axios.get(`${BASE_URL}clinics/by/doctors`, {
+    const response = await axios.get(`${BASE_URL}doctors/by/clinic`, {
       params: {
         clinic_id: clinicId
       },
@@ -73,7 +73,7 @@ export const getDoctorsByClinic = async (clinicId) => {
       };
     }
 
-    // Handle grouped response structure - flatten doctors by specialization
+    // Handle different response structures from the new API
     let formattedData = [];
     
     console.log('=== API RESPONSE DEBUG ===');
@@ -82,23 +82,55 @@ export const getDoctorsByClinic = async (clinicId) => {
     console.log('Response type:', typeof result.data);
     
     if (Array.isArray(result.data)) {
-      console.log('Processing grouped response structure');
-      // Flatten the grouped doctors data into a single array
-      result.data.forEach((specializationGroup, groupIndex) => {
-        console.log(`Specialization group ${groupIndex}:`, specializationGroup);
-        if (specializationGroup.doctors && Array.isArray(specializationGroup.doctors)) {
-          specializationGroup.doctors.forEach((doctor, doctorIndex) => {
-            console.log(`Doctor ${doctorIndex} in group ${groupIndex}:`, doctor);
-            formattedData.push({
-              ...doctor,
-              specialization: specializationGroup.specialization
-            });
-          });
-        }
+      console.log('Processing array response structure');
+      // If response is directly an array, filter for doctor-like objects
+      formattedData = result.data.filter(item => {
+        // Check if this looks like a doctor object (has name and id)
+        return item && typeof item === 'object' && item.name && item.id;
       });
-    } else if (result.data.doctors && Array.isArray(result.data.doctors)) {
-      console.log('Processing flat structure');
-      formattedData = result.data.doctors;
+    } else if (result.data && typeof result.data === 'object') {
+      // Handle object response structure
+      if (result.data.doctors && Array.isArray(result.data.doctors)) {
+        console.log('Processing doctors array in object');
+        formattedData = result.data.doctors.filter(item => {
+          return item && typeof item === 'object' && item.name && item.id;
+        });
+      } else if (result.data.data && Array.isArray(result.data.data)) {
+        console.log('Processing data array in object');
+        formattedData = result.data.data.filter(item => {
+          return item && typeof item === 'object' && item.name && item.id;
+        });
+      } else {
+        console.log('Processing grouped response structure');
+        // Flatten the grouped doctors data into a single array
+        Object.keys(result.data).forEach((key, groupIndex) => {
+          const group = result.data[key];
+          console.log(`Group ${key} (${groupIndex}):`, group);
+          if (group && Array.isArray(group)) {
+            group.forEach((doctor, doctorIndex) => {
+              console.log(`Doctor ${doctorIndex} in group ${key}:`, doctor);
+              // Only add if it looks like a doctor object
+              if (doctor && typeof doctor === 'object' && doctor.name && doctor.id) {
+                formattedData.push({
+                  ...doctor,
+                  specialization: key
+                });
+              }
+            });
+          } else if (group && group.doctors && Array.isArray(group.doctors)) {
+            group.doctors.forEach((doctor, doctorIndex) => {
+              console.log(`Doctor ${doctorIndex} in group ${key}:`, doctor);
+              // Only add if it looks like a doctor object
+              if (doctor && typeof doctor === 'object' && doctor.name && doctor.id) {
+                formattedData.push({
+                  ...doctor,
+                  specialization: group.specialization || key
+                });
+              }
+            });
+          }
+        });
+      }
     } else {
       console.log('No doctors found in response');
       formattedData = [];

@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: wp('3%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     textAlign: 'center',
     marginBottom: hp('1%'),
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('0.5%'),
   },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: wp('3.5%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     color: '#333',
   },
   callButton: {
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('2%'),
   },
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   },
   paymentOptionText: {
     fontSize: wp('4%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     color: '#333',
   },
   amountBox: {
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
   },
   amountText: {
     fontSize: wp('3.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
   },
   totalAmountContainer: {
@@ -599,12 +599,12 @@ const styles = StyleSheet.create({
   },
   totalAmountLabel: {
     fontSize: wp('4%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
   },
   totalAmountValue: {
     fontSize: wp('4%'),
-    fontWeight: '700',
+    fontFamily: PoppinsFonts.Bold,
     color: '#0D6EFD',
   },
   paymentModeOption: {
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   },
   paymentModeText: {
     fontSize: wp('4%'),
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
     color: '#333',
   },
   buttonContainer: {
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   },
   payNowButtonText: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
   },
   inputGroup: {

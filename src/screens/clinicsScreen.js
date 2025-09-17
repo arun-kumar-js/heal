@@ -18,6 +18,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import axios from 'axios';
+import { PoppinsFonts } from '../config/fonts';
 
 const ClinicsScreen = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     marginBottom: hp('0.5%'),
   },
@@ -381,7 +382,7 @@ const styles = StyleSheet.create({
   },
   hospitalName: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     marginBottom: hp('0.3%'),
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
@@ -408,7 +409,7 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: wp('3.5%'),
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -431,7 +432,7 @@ const styles = StyleSheet.create({
   viewButtonText: {
     color: '#003784',
     fontSize: wp('3.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
   },
 });
 

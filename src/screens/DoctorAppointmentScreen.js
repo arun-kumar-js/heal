@@ -25,9 +25,10 @@ import axios from 'axios';
 import { APPOINTMENT_FETCH_URL, basicAuth } from '../config/config';
 import { storeUserDetail, formatAppointmentData } from '../services/bookingApi';
 import { getOTPResponse } from '../utils/otpStorage';
+import { PoppinsFonts, FontStyles } from '../config/fonts';
 
 const DoctorAppointmentScreen = ({ navigation, route }) => {
-  const { doctor } = route.params || {};
+  const { doctor, hospitalName } = route.params || {};
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
@@ -176,7 +177,9 @@ console.log('clinic_id', clinic_id);
         params: {
           doctor_id: doctor_id,
           clinics_id: clinics_id,
-        date: date
+          date: date,
+          amount: 0, // Add amount parameter to prevent null error
+          token: 1   // Add token parameter
         }
       });
       console.log("📅 API CALL DEBUG:");
@@ -681,31 +684,26 @@ console.log('clinic_id', clinic_id);
   };
 
   const renderStars = (rating) => {
-    const numRating = parseFloat(rating) || 4.5;
-    const stars = [];
-    const fullStars = Math.floor(numRating);
-    const hasHalfStar = numRating % 1 !== 0;
+    return <Icon name="star" size={14} color="#FFA500" />;
+  };
 
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <Icon key={i} name="star" size={14} color="#FFA500" />
-      );
+  // Check if a time slot has passed
+  const isTimeSlotPassed = (timeSlot) => {
+    if (!timeSlot || !selectedDateObj) return false;
+    
+    const currentTime = new Date();
+    const selectedDate = new Date(selectedDateObj);
+    
+    // If selected date is today, check if time has passed
+    if (selectedDate.toDateString() === currentTime.toDateString()) {
+      const [hours, minutes] = timeSlot.split(':').map(Number);
+      const slotTime = new Date(selectedDate);
+      slotTime.setHours(hours, minutes, 0, 0);
+      
+      return slotTime < currentTime;
     }
-
-    if (hasHalfStar) {
-      stars.push(
-        <Icon key="half" name="star-half-alt" size={14} color="#FFA500" />
-      );
-    }
-
-    const emptyStars = 5 - Math.ceil(numRating);
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(
-        <Icon key={`empty-${i}`} name="star" size={14} color="#E0E0E0" />
-      );
-    }
-
-    return stars;
+    
+    return false;
   };
 
   // Handle date selection
@@ -859,9 +857,9 @@ console.log('clinic_id', clinic_id);
             {/* Doctor Info Overlay */}
             <View style={styles.doctorInfoOverlay}>
               <View style={styles.doctorDetails}>
-                <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
+                <Text style={styles.doctorName}>{doctor?.name }</Text>
                 <Text style={styles.doctorSpecialty}>
-                  {getDoctorSpecialty(doctor)} From Kl Clinic
+                  {getDoctorSpecialty(doctor)} 
                 </Text>
                 <View style={styles.ratingContainer}>
                   <View style={styles.starsContainer}>
@@ -898,7 +896,7 @@ console.log('clinic_id', clinic_id);
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>About.</Text>
           <Text style={styles.aboutText}>
-            {doctor?.name || 'Dr. Aishwarya'} is a skilled and compassionate {getDoctorSpecialty(doctor).toLowerCase()} specialist with over {getDoctorStats(doctor).experience} years of clinical experience. {doctor?.qualification ? `Qualified with ${doctor.qualification}, ` : ''}{doctor?.info || `Their expertise spans ${getDoctorSpecialty(doctor).toLowerCase()} diagnosis, treatment, and patient care, with a focus on providing comprehensive medical solutions.`}
+            {doctor?.name } is a skilled and compassionate {getDoctorSpecialty(doctor).toLowerCase()} specialist with over {getDoctorStats(doctor).experience} years of clinical experience. {doctor?.qualification ? `Qualified with ${doctor.qualification}, ` : ''}{doctor?.info || `Their expertise spans ${getDoctorSpecialty(doctor).toLowerCase()} diagnosis, treatment, and patient care, with a focus on providing comprehensive medical solutions.`}
           </Text>
         </View>
 
@@ -934,7 +932,10 @@ console.log('clinic_id', clinic_id);
               style={styles.calendarIcon}
                 onPress={() => setShowCustomCalendar(true)}
             >
-              <Icon name="calendar" size={16} color="#0D6EFD" />
+              <Image
+                source={require('../Assets/Images/Date.png')}
+                style={{ width: 20, height: 20, resizeMode: 'contain' }}
+              />
             </TouchableOpacity>
             </View>
           </View>
@@ -1029,28 +1030,36 @@ console.log('clinic_id', clinic_id);
                     const displayTime = formatTime(slot.time);
                     console.log(`  📅 Formatted Time: ${slot.time} → ${displayTime}`);
                     
+                    const isPassed = isTimeSlotPassed(slot.time);
+                    
                     return (
                       <TouchableOpacity
                         key={actualIndex}
                         style={[
                           styles.timeSlotButton,
-                          selectedTime === slot.time && styles.selectedTimeSlot
+                          selectedTime === slot.time && styles.selectedTimeSlot,
+                          isPassed && styles.passedTimeSlot
                         ]}
                         onPress={() => {
-                          setSelectedTime(slot.time);
-                          setSelectedTimeSlot(slot);
+                          if (!isPassed) {
+                            setSelectedTime(slot.time);
+                            setSelectedTimeSlot(slot);
+                          }
                         }}
+                        disabled={isPassed}
                       >
                         <Text style={[
                           styles.timeSlotText,
-                          selectedTime === slot.time && styles.selectedTimeText
+                          selectedTime === slot.time && styles.selectedTimeText,
+                          isPassed && styles.passedTimeText
                         ]}>
                           {displayTime}
                         </Text>
                         {slot.endTime && (
                           <Text style={[
                             styles.timeSlotEndText,
-                            selectedTime === slot.time && styles.selectedTimeText
+                            selectedTime === slot.time && styles.selectedTimeText,
+                            isPassed && styles.passedTimeText
                           ]}>
                             - {formatTime(slot.endTime)}
                           </Text>
@@ -1168,15 +1177,16 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
-    marginBottom: hp('0.5%'),
+   // marginBottom: hp('0.5%'),
   },
   doctorSpecialty: {
     fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#FFFFFF',
-    marginBottom: hp('1%'),
-    opacity: 0.9,
+   // marginBottom: hp('1%'),
+   // opacity: 0.9,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -1184,11 +1194,11 @@ const styles = StyleSheet.create({
   },
   starsContainer: {
     flexDirection: 'row',
-    marginRight: wp('2%'),
+    marginRight: wp('1%'),
   },
   ratingText: {
     fontSize: wp('3.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
   },
   callButton: {
@@ -1219,12 +1229,13 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     marginBottom: hp('0.5%'),
   },
   statLabel: {
     fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#FFFFFF',
     opacity: 0.9,
   },
@@ -1248,7 +1259,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     marginBottom: hp('0.5%'),
   },
@@ -1258,10 +1269,11 @@ const styles = StyleSheet.create({
   slotsCount: {
     fontSize: wp('3.5%'),
     color: '#0D6EFD',
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   aboutText: {
     fontSize: wp('3.8%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
     lineHeight: wp('5%'),
   },
@@ -1282,6 +1294,7 @@ const styles = StyleSheet.create({
   },
   dateDay: {
     fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
     marginBottom: hp('0.5%'),
   },
@@ -1290,7 +1303,7 @@ const styles = StyleSheet.create({
   },
   dateNumber: {
     fontSize: wp('4%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
   },
   timeSlotsContainer: {
@@ -1316,13 +1329,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D6EFD',
     borderColor: '#0D6EFD',
   },
+  passedTimeSlot: {
+    backgroundColor: '#FFE6E6',
+    borderColor: '#FF6B6B',
+    opacity: 0.6,
+  },
   timeSlotText: {
     fontSize: wp('3.5%'),
     color: '#333',
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  passedTimeText: {
+    color: '#FF6B6B',
+    textDecorationLine: 'line-through',
   },
   timeSlotEndText: {
     fontSize: wp('2.8%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
     marginTop: wp('0.5%'),
   },
@@ -1335,6 +1358,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: wp('4%'),
     fontSize: wp('3.8%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#333',
     textAlignVertical: 'top',
     minHeight: hp('8%'),
@@ -1347,11 +1371,12 @@ const styles = StyleSheet.create({
   requiredAsterisk: {
     color: '#DC2626',
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   errorText: {
     color: '#DC2626',
     fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
     marginTop: hp('0.5%'),
     marginLeft: wp('1%'),
   },
@@ -1370,7 +1395,7 @@ const styles = StyleSheet.create({
   },
   scheduleButtonText: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
   },
   loadingContainer: {
@@ -1380,11 +1405,13 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: wp('2%'),
     fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
   },
   loadingSubtext: {
     marginTop: wp('1%'),
     fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#999',
     textAlign: 'center',
   },
@@ -1394,12 +1421,13 @@ const styles = StyleSheet.create({
   },
   noSlotsText: {
     fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Medium,
     color: '#666',
     marginTop: wp('2%'),
-    fontWeight: '500',
   },
   noSlotsSubtext: {
     fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#999',
     marginTop: wp('1%'),
   },
@@ -1409,7 +1437,7 @@ const styles = StyleSheet.create({
   },
   next7DaysTitle: {
     fontSize: wp('4%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     marginBottom: hp('2%'),
   },
@@ -1446,7 +1474,7 @@ const styles = StyleSheet.create({
   },
   calendarHeaderText: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     textAlign: 'center',
     flex: 1,
@@ -1472,11 +1500,11 @@ const styles = StyleSheet.create({
   monthButtonText: {
     fontSize: wp('3.5%'),
     color: '#666',
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
   },
   selectedMonthText: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   disabledMonthButton: {
     backgroundColor: '#f5f5f5',
@@ -1504,7 +1532,7 @@ const styles = StyleSheet.create({
   calendarCancelText: {
     fontSize: wp('4%'),
     color: '#666',
-    fontWeight: '500',
+    fontFamily: PoppinsFonts.Medium,
   },
   calendarOkButton: {
     paddingVertical: hp('1%'),
@@ -1513,7 +1541,7 @@ const styles = StyleSheet.create({
   calendarOkText: {
     fontSize: wp('4%'),
     color: '#0D6EFD',
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
   },
   // Month Calendar Grid Styles
   monthCalendarContainer: {
@@ -1527,7 +1555,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: wp('3%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#666',
     paddingVertical: hp('1%'),
   },

@@ -17,6 +17,7 @@ import {
 } from 'react-native-responsive-screen';
 import { useDispatch } from 'react-redux';
 import { setSelectedCategory } from '../store/slices/doctorsSlice';
+import { PoppinsFonts } from '../config/fonts';
 
 const Category = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     marginBottom: hp('0.5%'),
   },
@@ -291,7 +292,7 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: wp('3.%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333333',
     textAlign: 'center',
     

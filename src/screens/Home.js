@@ -22,6 +22,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setSelectedCategory } from '../store/slices/doctorsSlice';
 import { selectDoctors } from '../store/selectors/doctorsSelectors';
 import { getOTPResponse } from '../utils/otpStorage';
+import { PoppinsFonts, FontStyles } from '../config/fonts';
 
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -530,18 +531,7 @@ console.log("doctors", doctors);
                           </TouchableOpacity>
                         ) : (
                           <>
-                            <View style={styles.ratingBadge}>
-                              <Icon
-                                name="star"
-                                size={12}
-                                color="#FFC107"
-                                solid
-                                style={{ marginRight: 4 }}
-                              />
-                              <Text style={styles.ratingText}>
-                                {doctor.rating}
-                              </Text>
-                            </View>
+                           
                             <LinearGradient
                               colors={['transparent', 'rgba(0,0,0,0.7)']}
                               style={styles.doctorInfoGradient}
@@ -606,12 +596,13 @@ const styles = StyleSheet.create({
   greetingText: {
     color: '#FFFFFF',
     fontSize: wp('5.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     backgroundColor: 'transparent',
   },
   locationText: {
     color: '#FFFFFF',
     fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
     backgroundColor: 'transparent',
   },
   gradientTextContainer: {
@@ -636,6 +627,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#000',
   },
   mainContent: {
@@ -667,12 +659,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     backgroundColor: 'transparent',
   },
   cardSubtitle: {
     fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
     marginTop: hp('0.2%'),
     marginBottom: hp('2%'),
@@ -705,7 +698,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#000',
     textAlign: 'center',
   },
@@ -729,13 +722,13 @@ const styles = StyleSheet.create({
   },
   departmentText: {
     fontSize: wp('3.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#000',
     textAlign: 'center',
   },
   viewAllText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#0D6EFD',
   },
   doctorsSection: {
@@ -750,7 +743,7 @@ const styles = StyleSheet.create({
   },
   seeAllLink: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
   },
   filterScroll: {
@@ -776,9 +769,10 @@ const styles = StyleSheet.create({
   },
   activeFilterText: {
     color: '#0D6EFD',
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   inactiveFilterText: {
+    fontFamily: PoppinsFonts.Regular,
    // color: '#666',
   },
   filterIcon: {
@@ -832,7 +826,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: wp('3%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     marginLeft: wp('1%'),
   },
@@ -844,7 +838,7 @@ const styles = StyleSheet.create({
   doctorName: {
     color: '#FFFFFF',
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     marginBottom: hp('0.3%'),
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
@@ -854,6 +848,7 @@ const styles = StyleSheet.create({
   doctorSpecialty: {
     color: '#FFFFFF',
     fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -870,7 +865,7 @@ const styles = StyleSheet.create({
   viewAllDoctorText: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   loadingContainer: {
     flex: 1,
@@ -880,6 +875,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Regular,
     color: '#666',
     textAlign: 'center',
   },

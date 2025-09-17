@@ -6,6 +6,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import LinearGradient from 'react-native-linear-gradient';
+import { PoppinsFonts } from '../../config/fonts';
 
 // Import your screen components
 import HomeScreen from '../Home';
@@ -71,8 +72,7 @@ const BottomTap = () => {
         ),
         tabBarLabelStyle: {
           fontSize: wp('3%'),
-          fontWeight: '600',
-          fontFamily: 'Poppins',
+          fontFamily: PoppinsFonts.SemiBold,
           color: '#FFFFFF',
         },
         headerShown: false,

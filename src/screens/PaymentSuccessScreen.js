@@ -13,6 +13,7 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { PoppinsFonts } from '../config/fonts';
 
 const PaymentSuccessScreen = ({ navigation, route }) => {
   const { 
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
   },
   confirmationText: {
     fontSize: wp('5%'),
-    fontWeight: '700',
+    fontFamily: PoppinsFonts.Bold,
     color: '#0D6EFD',
     textAlign: 'center',
     lineHeight: wp('6%'),
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
   },
   tokenText: {
     fontSize: wp('4.5%'),
-    fontWeight: '700',
+    fontFamily: PoppinsFonts.Bold,
     color: '#0D6EFD',
     textAlign: 'center',
   },
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   },
   viewDetailsButtonText: {
     fontSize: wp('4.5%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
   },
 });

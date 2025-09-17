@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontSize: wp('3%'),
-    fontWeight: '600',
+    fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
     textAlign: 'center',
   },

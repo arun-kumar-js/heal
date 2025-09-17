@@ -72,7 +72,13 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
   // Helper function to get doctor image
   const getDoctorImage = (doctor) => {
     console.log('=== getDoctorImage called ===');
-    console.log('Getting image for doctor:', doctor.name, 'Image field:', doctor.image);
+    console.log('Getting image for doctor:', doctor.name, 'Profile image field:', doctor.profile_image);
+    
+    if (doctor.profile_image) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.profile_image}`;
+      console.log('Using doctor.profile_image:', imageUrl);
+      return { uri: imageUrl };
+    }
     
     if (doctor.image) {
       const imageUrl = `https://spiderdesk.asia/healto/${doctor.image}`;
@@ -148,7 +154,12 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
   const getDoctorSpecialty = (doctor) => {
     // Use specialization from API response if available
     if (doctor.specialization) {
-      return doctor.specialization;
+      // Handle both string and object specialization
+      if (typeof doctor.specialization === 'string') {
+        return doctor.specialization;
+      } else if (doctor.specialization.name) {
+        return doctor.specialization.name;
+      }
     }
     
     const specialtyMap = {
@@ -183,19 +194,25 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
     console.log('All doctor fields:', Object.keys(doctor));
     console.log('Doctor object:', JSON.stringify(doctor, null, 2));
     
+    // Safety check - ensure doctor is an object and has required fields
+    if (!doctor || typeof doctor !== 'object') {
+      console.warn('Invalid doctor object:', doctor);
+      return null;
+    }
+    
     const doctorImage = getDoctorImage(doctor);
     console.log('Processed image URI:', doctorImage.uri);
     console.log('=== END DOCTOR DEBUG ===');
     
     return {
-      ...doctor, // Spread first
-      id: doctor.id,
-      name: doctor.name,
+      // Keep the complete original doctor object
+      ...doctor,
+      // Override with processed display data
       specialty: getDoctorSpecialty(doctor),
       rating: doctor.rating ? Number(doctor.rating) : (4.0 + (index % 3) * 0.3),
-      image: doctorImage.uri, // Override with processed image URI after spread
+      image: doctorImage.uri,
     };
-  });
+  }).filter(doctor => doctor !== null); // Remove any null entries
 
   // Use real hospital data or fallback to default values
   const hospitalData = {
@@ -278,6 +295,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
 
     return stars;
   };
+  
 
   const getHospitalImage = () => {
     if (hospital?.logo) {
@@ -385,7 +403,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
               <TouchableOpacity 
                 key={index} 
                 style={styles.departmentItem}
-                onPress={() => navigation.navigate('DoctorListScreen', { 
+                onPress={() => navigation.navigate('DoctorListByHospitalScreen', { 
                   doctors: displayedDoctors,
                   hospitalId: hospital?.id,
                   hospitalName: hospital?.name,
@@ -401,7 +419,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
             ))}
             <TouchableOpacity 
               style={styles.departmentItem}
-              onPress={() => navigation.navigate('DoctorListScreen', { 
+              onPress={() => navigation.navigate('DoctorListByHospitalScreen', { 
                 doctors: displayedDoctors,
                 hospitalId: hospital?.id,
                 hospitalName: hospital?.name,
@@ -422,7 +440,11 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
               <Text style={styles.headerTextContainer}>Top Doctors</Text>
               <Text style={styles.cardSubtitle}>Available at this hospital</Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('DoctorListScreen', { doctors: displayedDoctors })}>
+            <TouchableOpacity onPress={() => navigation.navigate('DoctorListByHospitalScreen', { 
+              doctors: displayedDoctors,
+              hospitalId: hospital?.id,
+              hospitalName: hospital?.name
+            })}>
               <Text style={styles.seeAllLink}>See All</Text>
             </TouchableOpacity>
           </View>
@@ -454,8 +476,21 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
                 console.log('Full doctor object:', doctor);
                 console.log('=== END RENDERING DOCTOR CARD ===');
                 
+                // Additional safety checks before rendering
+                if (!doctor || typeof doctor !== 'object') {
+                  console.warn('Skipping invalid doctor object:', doctor);
+                  return null;
+                }
+                
                 return (
-                  <TouchableOpacity key={doctor.id || index} style={styles.doctorCard}>
+                  <TouchableOpacity 
+                    key={doctor.id || index} 
+                    style={styles.doctorCard}
+                    onPress={() => navigation.navigate('DoctorAppointment', { 
+                      doctor,
+                      hospitalName: hospital?.name 
+                    })}
+                  >
                     <Image 
                       source={{ uri: doctor.image }} 
                       style={styles.doctorImage}
@@ -465,13 +500,13 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
                         setFailedImages(prev => new Set([...prev, doctor.id]));
                       }}
                     />
-                  <View style={styles.doctorInfo}>
-                    <Text style={styles.doctorName}>{doctor.name}</Text>
-                    <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
-                  </View>
-                </TouchableOpacity>
+                    <View style={styles.doctorInfo}>
+                      <Text style={styles.doctorName}>{doctor.name }</Text>
+                      <Text style={styles.doctorSpecialty}>{doctor.specialty }</Text>
+                    </View>
+                  </TouchableOpacity>
                 );
-              })
+              }).filter(Boolean) // Remove any null entries
             ) : (
               <View style={styles.noDataContainer}>
                 <Text style={styles.noDataText}>No doctors available</Text>
@@ -480,7 +515,11 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
             {displayedDoctors.length > 0 && (
               <TouchableOpacity 
                 style={styles.viewAllDoctorCard}
-                onPress={() => navigation.navigate('DoctorListScreen', { doctors: displayedDoctors })}
+                onPress={() => navigation.navigate('DoctorListByHospitalScreen', { 
+                  doctors: displayedDoctors,
+                  hospitalId: hospital?.id,
+                  hospitalName: hospital?.name
+                })}
               >
                 <View style={styles.viewAllDoctorContent}>
                   <Text style={styles.viewAllDoctorText}>View All</Text>
@@ -538,7 +577,6 @@ const styles = StyleSheet.create({
   },
   hospitalName: {
     fontSize: wp('6%'),
-    fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: hp('0.5%'),
     fontFamily: PoppinsFonts.Bold,
@@ -560,7 +598,6 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: wp('4%'),
     color: '#FFFFFF',
-    fontWeight: 'bold',
     fontFamily: PoppinsFonts.Bold,
   },
   callButton: {
@@ -599,7 +636,6 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: -hp('0.3%'),
     fontFamily: PoppinsFonts.Bold,
@@ -634,7 +670,6 @@ const styles = StyleSheet.create({
   },
   aboutTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#333',
     marginBottom: hp('1%'),
     fontFamily: PoppinsFonts.Bold,
@@ -676,7 +711,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
     color: '#333',
     marginBottom: hp('0.5%'),
     fontFamily: PoppinsFonts.Bold,
@@ -723,7 +757,6 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: wp('3.5%'),
     color: '#003784',
-    fontWeight: 'bold',
     fontFamily: PoppinsFonts.Bold,
   },
   doctorsHeader: {
@@ -735,7 +768,6 @@ const styles = StyleSheet.create({
   seeAllLink: {
     fontSize: wp('4%'),
     color: '#003784',
-    fontWeight: 'bold',
     fontFamily: PoppinsFonts.Bold,
   },
   filterScroll: {
@@ -769,7 +801,7 @@ const styles = StyleSheet.create({
   },
   activeFilterText: {
     color: '#0D6EFD',
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
   },
   inactiveFilterText: {
     color: '#666',
@@ -800,7 +832,6 @@ const styles = StyleSheet.create({
   },
   doctorName: {
     fontSize: wp('4%'),
-    fontWeight: 'bold',
     color: '#333',
     marginBottom: hp('0.5%'),
     fontFamily: PoppinsFonts.Bold,
@@ -822,7 +853,6 @@ const styles = StyleSheet.create({
   doctorRatingText: {
     fontSize: wp('3.5%'),
     color: '#333',
-    fontWeight: 'bold',
     fontFamily: PoppinsFonts.Bold,
   },
   viewAllDoctorCard: {
@@ -839,7 +869,6 @@ const styles = StyleSheet.create({
   },
   viewAllDoctorText: {
     fontSize: wp('4%'),
-    fontWeight: 'bold',
     color: '#666',
     fontFamily: PoppinsFonts.Bold,
   },
@@ -859,7 +888,7 @@ const styles = StyleSheet.create({
   cardTitle: {
    
     fontSize: wp('4.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#FFFFFF',
     backgroundColor: 'transparent',
   },
@@ -893,13 +922,13 @@ const styles = StyleSheet.create({
   },
   departmentText: {
     fontSize: wp('3.5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#000',
     textAlign: 'center',
   },
   headerTextContainer: {
     fontSize: wp('5%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     color: '#333',
     marginBottom: hp('0.5%'),
   },
@@ -963,7 +992,7 @@ const styles = StyleSheet.create({
   },
   testImageText: {
     fontSize: wp('4%'),
-    fontWeight: 'bold',
+    fontFamily: PoppinsFonts.Bold,
     marginBottom: hp('1%'),
     color: '#333',
   },
