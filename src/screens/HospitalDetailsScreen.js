@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   StatusBar,
   Platform,
   ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -18,11 +19,183 @@ import {
 } from 'react-native-responsive-screen';
 import LinearGradient from 'react-native-linear-gradient';
 import { PoppinsFonts } from '../config/fonts';
+import { getDoctorsByClinic } from '../services/doctorsByClinicApi';
 
 const HospitalDetailsScreen = ({ navigation, route }) => {
   const { hospital } = route.params || {};
   
   const [selectedFilter, setSelectedFilter] = useState('All');
+  const [doctors, setDoctors] = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [doctorsError, setDoctorsError] = useState(null);
+  const [failedImages, setFailedImages] = useState(new Set());
+
+  // Fetch doctors by clinic ID
+  const loadDoctorsByClinic = async () => {
+    if (!hospital?.id) {
+      console.log('No hospital ID provided, skipping doctors fetch');
+      return;
+    }
+
+    try {
+      setDoctorsLoading(true);
+      setDoctorsError(null);
+      
+      console.log('Fetching doctors for clinic ID:', hospital.id);
+      const result = await getDoctorsByClinic(hospital.id);
+      
+      if (result.success) {
+        setDoctors(result.data);
+        console.log('Doctors loaded successfully:', result.data);
+        console.log('First doctor details:', result.data[0]);
+        if (result.data[0]) {
+          console.log('First doctor image field:', result.data[0].image);
+          console.log('All fields in first doctor:', Object.keys(result.data[0]));
+        }
+      } else {
+        setDoctorsError(result.error);
+        console.error('Failed to load doctors:', result.error);
+      }
+    } catch (error) {
+      setDoctorsError(error.message);
+      console.error('Error loading doctors:', error);
+    } finally {
+      setDoctorsLoading(false);
+    }
+  };
+
+  // Load doctors when component mounts
+  useEffect(() => {
+    loadDoctorsByClinic();
+  }, [hospital?.id]);
+
+  // Helper function to get doctor image
+  const getDoctorImage = (doctor) => {
+    console.log('=== getDoctorImage called ===');
+    console.log('Getting image for doctor:', doctor.name, 'Image field:', doctor.image);
+    
+    if (doctor.image) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.image}`;
+      console.log('Using doctor.image:', imageUrl);
+      return { uri: imageUrl };
+    }
+    
+    // Fallback to test image if no image field
+    console.log('No image field found, using test image as fallback');
+    const testImageUri = 'https://spiderdesk.asia/healto/profile_images/1757658752_doctor22.jpg';
+    return { uri: testImageUri };
+    
+    // Original image logic (commented out for debugging)
+    /*
+    if (doctor.image) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.image}`;
+      console.log('Using doctor.image:', imageUrl);
+      
+      // Test if the image URL is accessible
+      fetch(imageUrl, { method: 'HEAD' })
+        .then(response => {
+          console.log(`Image URL test for ${doctor.name}:`, {
+            url: imageUrl,
+            status: response.status,
+            ok: response.ok,
+            headers: response.headers
+          });
+        })
+        .catch(error => {
+          console.log(`Image URL test failed for ${doctor.name}:`, {
+            url: imageUrl,
+            error: error.message
+          });
+        });
+      
+      return { uri: imageUrl };
+    }
+    
+    if (doctor.profile_image) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.profile_image}`;
+      console.log('Using doctor.profile_image:', imageUrl);
+      return { uri: imageUrl };
+    }
+    if (doctor.avatar) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.avatar}`;
+      console.log('Using doctor.avatar:', imageUrl);
+      return { uri: imageUrl };
+    }
+    if (doctor.photo) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.photo}`;
+      console.log('Using doctor.photo:', imageUrl);
+      return { uri: imageUrl };
+    }
+    if (doctor.profile_picture) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.profile_picture}`;
+      console.log('Using doctor.profile_picture:', imageUrl);
+      return { uri: imageUrl };
+    }
+    if (doctor.doctor_image) {
+      const imageUrl = `https://spiderdesk.asia/healto/${doctor.doctor_image}`;
+      console.log('Using doctor.doctor_image:', imageUrl);
+      return { uri: imageUrl };
+    }
+    
+    // Fallback to random user images
+    const fallbackUrl = `https://randomuser.me/api/portraits/${doctor.gender === 'Female' ? 'women' : 'men'}/${Math.floor(Math.random() * 50) + 1}.jpg`;
+    console.log('Using fallback image:', fallbackUrl);
+    return { uri: fallbackUrl };
+    */
+  };
+
+  // Helper function to get doctor specialty
+  const getDoctorSpecialty = (doctor) => {
+    // Use specialization from API response if available
+    if (doctor.specialization) {
+      return doctor.specialization;
+    }
+    
+    const specialtyMap = {
+      1: 'Cardiology',
+      2: 'Orthopedics', 
+      3: 'Pediatrics',
+      4: 'Dermatology',
+      5: 'Neurology',
+      6: 'General Medicine',
+      7: 'Gynecology',
+      8: 'Ophthalmology',
+      9: 'ENT',
+      10: 'Psychiatry'
+    };
+    
+    if (doctor.specialization_id) {
+      return specialtyMap[doctor.specialization_id] || 'General Medicine';
+    }
+    
+    const typeMap = {
+      'hospital': 'Cardiology',
+      'clinic': 'General Medicine',
+      'multispeciality': 'Multi Specialty'
+    };
+    return typeMap[doctor.type] || 'General Medicine';
+  };
+
+  // Prepare doctors data for display (first 6 doctors)
+  const displayedDoctors = doctors.slice(0, 6).map((doctor, index) => {
+    console.log('=== DOCTOR DEBUG INFO ===');
+    console.log('Doctor name:', doctor.name);
+    console.log('All doctor fields:', Object.keys(doctor));
+    console.log('Doctor object:', JSON.stringify(doctor, null, 2));
+    
+    const doctorImage = getDoctorImage(doctor);
+    console.log('Processed image URI:', doctorImage.uri);
+    console.log('=== END DOCTOR DEBUG ===');
+    
+    return {
+      ...doctor, // Spread first
+      id: doctor.id,
+      name: doctor.name,
+      specialty: getDoctorSpecialty(doctor),
+      rating: doctor.rating ? Number(doctor.rating) : (4.0 + (index % 3) * 0.3),
+      image: doctorImage.uri, // Override with processed image URI after spread
+    };
+  });
 
   // Use real hospital data or fallback to default values
   const hospitalData = {
@@ -44,10 +217,10 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
 
   const departmentsData = [
     { name: 'Cardiology', icon: require('../Assets/Images/heart.png'), },
-    { name: 'ENT', icon: require('../Assets/Images/brain.png'), },
+    { name: 'ENT', icon: require('../Assets/Images/ENT.png'), },
     { name: 'Orthopedics', icon: require('../Assets/Images/bone.png'),  },
-    { name: 'Neurology', icon: require('../Assets/Images/brain.png'),  },
-    { name: 'Gastroenterology', icon: require('../Assets/Images/heart.png'),  },
+    { name: 'Neurology', icon: require('../Assets/Images/brain.png'), },
+    { name: 'Gastroenterology', icon: require('../Assets/Images/heart.png'), },
   ];
 
   const filterData = [
@@ -209,7 +382,17 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.cardSubtitle}>Select the Department</Text>
           <View style={styles.departmentGrid}>
             {departmentsData.map((dept, index) => (
-              <TouchableOpacity key={index} style={styles.departmentItem}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.departmentItem}
+                onPress={() => navigation.navigate('DoctorListScreen', { 
+                  doctors: displayedDoctors,
+                  hospitalId: hospital?.id,
+                  hospitalName: hospital?.name,
+                  selectedCategory: dept.name,
+                  fromHospital: true
+                })}
+              >
                 <View style={[styles.departmentIconContainer, { backgroundColor: dept.color }]}>
                   <Image source={dept.icon} style={styles.departmentIcon} resizeMode="contain" />
                 </View>
@@ -218,7 +401,12 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
             ))}
             <TouchableOpacity 
               style={styles.departmentItem}
-              onPress={() => navigation.navigate('Category')}
+              onPress={() => navigation.navigate('DoctorListScreen', { 
+                doctors: displayedDoctors,
+                hospitalId: hospital?.id,
+                hospitalName: hospital?.name,
+                fromHospital: true
+              })}
             >
               <View style={[styles.departmentIconContainer, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E0E0' }]}>
                 <Image source={require('../Assets/Images/view_all.png')} style={styles.departmentIcon} resizeMode="contain" />
@@ -231,52 +419,13 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
         <View style={styles.sectionContainer}>
           <View style={styles.doctorsHeader}>
             <View>
-              <Text style={styles.headerTextContainer}>Top Doctors?</Text>
-              <Text style={styles.cardSubtitle}>Select the Department</Text>
+              <Text style={styles.headerTextContainer}>Top Doctors</Text>
+              <Text style={styles.cardSubtitle}>Available at this hospital</Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('DoctorListScreen', { doctors: doctorsData })}>
+            <TouchableOpacity onPress={() => navigation.navigate('DoctorListScreen', { doctors: displayedDoctors })}>
               <Text style={styles.seeAllLink}>See All</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Filter Buttons */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-          >
-            {filterData.map((filter, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.filterChip,
-                  selectedFilter === filter.name ? styles.activeFilterChip : styles.inactiveFilterChip,
-                ]}
-                onPress={() => setSelectedFilter(filter.name)}
-              >
-                {filter.icon && (
-                  <Image
-                    source={filter.icon}
-                    style={[
-                      styles.filterIcon,
-                      {
-                        tintColor: selectedFilter === filter.name ? '#0D6EFD' : '#666'
-                      }
-                    ]}
-                    resizeMode="contain"
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.filterText,
-                    selectedFilter === filter.name ? styles.activeFilterText : styles.inactiveFilterText,
-                  ]}
-                >
-                  {filter.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
 
           {/* Doctors Grid */}
           <ScrollView
@@ -284,26 +433,60 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
             showsHorizontalScrollIndicator={false}
             style={styles.doctorsScroll}
           >
-            {doctorsData.map((doctor, index) => (
-              <TouchableOpacity key={index} style={styles.doctorCard}>
-                <Image source={{ uri: doctor.image }} style={styles.doctorImage} />
-                <View style={styles.doctorInfo}>
-                  <Text style={styles.doctorName}>{doctor.name}</Text>
-                  <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
-                  <View style={styles.doctorRating}>
-                    <View style={styles.doctorStars}>
-                      {renderStars(doctor.rating)}
-                    </View>
-                    <Text style={styles.doctorRatingText}>{doctor.rating}</Text>
+            {doctorsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0D6EFD" />
+                <Text style={styles.loadingText}>Loading doctors...</Text>
+              </View>
+            ) : doctorsError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Failed to load doctors</Text>
+                <TouchableOpacity onPress={loadDoctorsByClinic} style={styles.retryButton}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : displayedDoctors.length > 0 ? (
+              displayedDoctors.map((doctor, index) => {
+                console.log('=== RENDERING DOCTOR CARD ===');
+                console.log('Doctor name:', doctor.name);
+                console.log('Doctor image field:', doctor.image);
+                console.log('Image source being passed to Image component:', { uri: doctor.image });
+                console.log('Full doctor object:', doctor);
+                console.log('=== END RENDERING DOCTOR CARD ===');
+                
+                return (
+                  <TouchableOpacity key={doctor.id || index} style={styles.doctorCard}>
+                    <Image 
+                      source={{ uri: doctor.image }} 
+                      style={styles.doctorImage}
+                      onLoad={() => console.log('✅ Image loaded successfully for:', doctor.name, 'URL:', doctor.image)}
+                      onError={(error) => {
+                        console.log('❌ Image load error for doctor:', doctor.name, 'Image URL:', doctor.image, 'Error:', error);
+                        setFailedImages(prev => new Set([...prev, doctor.id]));
+                      }}
+                    />
+                  <View style={styles.doctorInfo}>
+                    <Text style={styles.doctorName}>{doctor.name}</Text>
+                    <Text style={styles.doctorSpecialty}>{doctor.specialty}</Text>
                   </View>
+                </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataText}>No doctors available</Text>
+              </View>
+            )}
+            {displayedDoctors.length > 0 && (
+              <TouchableOpacity 
+                style={styles.viewAllDoctorCard}
+                onPress={() => navigation.navigate('DoctorListScreen', { doctors: displayedDoctors })}
+              >
+                <View style={styles.viewAllDoctorContent}>
+                  <Text style={styles.viewAllDoctorText}>View All</Text>
                 </View>
               </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={styles.viewAllDoctorCard}>
-              <View style={styles.viewAllDoctorContent}>
-                <Text style={styles.viewAllDoctorText}>View All</Text>
-              </View>
-            </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       </ScrollView>
@@ -719,6 +902,77 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: hp('0.5%'),
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('4%'),
+    width: wp('80%'),
+  },
+  loadingText: {
+    marginTop: hp('1%'),
+    fontSize: wp('4%'),
+    color: '#666',
+    fontFamily: PoppinsFonts.regular,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('4%'),
+    width: wp('80%'),
+  },
+  errorText: {
+    fontSize: wp('4%'),
+    color: '#d9534f',
+    fontFamily: PoppinsFonts.regular,
+    textAlign: 'center',
+    marginBottom: hp('2%'),
+  },
+  retryButton: {
+    backgroundColor: '#0D6EFD',
+    paddingHorizontal: wp('6%'),
+    paddingVertical: hp('1%'),
+    borderRadius: wp('2%'),
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.medium,
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('4%'),
+    width: wp('80%'),
+  },
+  noDataText: {
+    fontSize: wp('4%'),
+    color: '#666',
+    fontFamily: PoppinsFonts.regular,
+    textAlign: 'center',
+  },
+  testImageContainer: {
+    marginVertical: hp('2%'),
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: wp('4%'),
+    borderRadius: wp('2%'),
+  },
+  testImageText: {
+    fontSize: wp('4%'),
+    fontWeight: 'bold',
+    marginBottom: hp('1%'),
+    color: '#333',
+  },
+  testImage: {
+    width: wp('20%'),
+    height: wp('20%'),
+    borderRadius: wp('10%'),
+    borderWidth: 2,
+    borderColor: '#0D6EFD',
   },
 });
 

@@ -100,7 +100,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
       console.log('💰 BOOKING DETAILS - Amount dispatched to Redux:', selectedTimeSlot.amount);
     } else {
       // Set default amount if no amount found in time slot
-      const defaultAmount = 500; // Default consultation fee
+      const defaultAmount = 150; // Default consultation fee based on API response
       dispatch(setAmount(defaultAmount));
       console.log('💰 BOOKING DETAILS - No amount in timeSlot, setting default:', defaultAmount);
     }
@@ -262,9 +262,14 @@ const BookingDetailsScreen = ({ navigation, route }) => {
       
       console.log('appointment_time value:', appointmentTime);
 
-      // Get amount from Redux state or use default
-      const appointmentAmount = appointmentDetails.formData.amount || 500;
+      // Get amount from selectedTimeSlot or Redux state or use default
+      const appointmentAmount = selectedTimeSlot?.amount || appointmentDetails.formData.amount || 150;
       console.log('💰 BOOKING DETAILS - Using amount for appointment:', appointmentAmount);
+      console.log('💰 BOOKING DETAILS - Amount sources:', {
+        selectedTimeSlotAmount: selectedTimeSlot?.amount,
+        reduxAmount: appointmentDetails.formData.amount,
+        finalAmount: appointmentAmount
+      });
 
       // Prepare appointment data
       const appointmentData = {

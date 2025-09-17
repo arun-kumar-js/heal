@@ -29,6 +29,10 @@ const ClinicsScreen = ({ navigation, route }) => {
   // Get the selected type from route params
   const selectedType = route.params?.selectedType || 'Hospitals';
   const selectedTypeFormatted = route.params?.selectedTypeFormatted || 'Hospitals';
+  
+  // Debug: Log the selected type
+  console.log('🏥 CLINICS SCREEN - Selected type:', selectedType);
+  console.log('🏥 CLINICS SCREEN - Route params:', route.params);
 
 
   useEffect(() => {
@@ -77,13 +81,27 @@ const ClinicsScreen = ({ navigation, route }) => {
   useEffect(() => {
     let filtered = clinics;
     
+    console.log('🔍 CLINICS FILTERING - Total clinics:', clinics.length);
+    console.log('🔍 CLINICS FILTERING - Selected type:', selectedType);
+    
     // Filter by selected type first
     if (selectedType === 'Hospitals') {
       filtered = clinics.filter(clinic => clinic.type === 'hospital');
+      console.log('🏥 FILTERING - Hospitals found:', filtered.length);
     } else if (selectedType === 'Clinics') {
       filtered = clinics.filter(clinic => clinic.type === 'clinic');
-    } else if (selectedType === 'Multi Specialty\nClinic') {
+      console.log('🏥 FILTERING - Clinics found:', filtered.length);
+    } else if (selectedType === 'Multi Specialty\nClinic' || selectedType === 'Multi Specialty Clinic') {
       filtered = clinics.filter(clinic => clinic.type === 'multispeciality');
+      console.log('🏥 FILTERING - Multi Specialty Clinics found:', filtered.length);
+    }
+    
+    // Log sample clinic data to understand the structure
+    if (clinics.length > 0) {
+      console.log('🔍 CLINICS SAMPLE DATA:', {
+        firstClinic: clinics[0],
+        clinicTypes: [...new Set(clinics.map(c => c.type))]
+      });
     }
     
     // Then filter by search query
@@ -172,7 +190,7 @@ const ClinicsScreen = ({ navigation, route }) => {
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
         <TextInput
-          placeholder={`Search by ${selectedTypeFormatted}`}
+          placeholder="Search hospitals & clinics..."
           placeholderTextColor="#888"
           style={styles.searchInput}
           value={searchQuery}

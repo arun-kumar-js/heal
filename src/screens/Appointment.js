@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -14,42 +16,107 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import { 
+  getAppointmentBookingDetailsFromStorage, 
+  formatAppointmentData,
+  getAppointmentStatusColor,
+  getAppointmentStatusText,
+  formatAppointmentDate,
+  formatAppointmentTime
+} from '../services/appointmentBookingApi';
 
 const Appointment = ({ navigation }) => {
-  const doctors = [
-    {
-      id: 1,
-      name: 'Dr. Aishwarya',
-      specialty: 'Cardiology',
-      clinic: 'From Kl Clinic',
-      rating: 4.5,
-      image: 'https://ui-avatars.com/api/?name=Dr+Aishwarya&background=0D6EFD&color=fff&size=100',
-    },
-    {
-      id: 2,
-      name: 'Dr. Kishore',
-      specialty: 'Neurology',
-      clinic: 'From Kl Clinic',
-      rating: 4.3,
-      image: 'https://ui-avatars.com/api/?name=Dr+Kishore&background=0D6EFD&color=fff&size=100',
-    },
-    {
-      id: 3,
-      name: 'Dr. Shan',
-      specialty: 'Dermatology',
-      clinic: 'From Kl Clinic',
-      rating: 4.0,
-      image: 'https://ui-avatars.com/api/?name=Dr+Shan&background=0D6EFD&color=fff&size=100',
-    },
-    {
-      id: 4,
-      name: 'Dr. Stephen',
-      specialty: 'Orthopedics',
-      clinic: 'From Kl Clinic',
-      rating: 4.2,
-      image: 'https://ui-avatars.com/api/?name=Dr+Stephen&background=0D6EFD&color=fff&size=100',
-    },
-  ];
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'upcoming', 'completed'
+  const [formattedData, setFormattedData] = useState({
+    appointments: [],
+    totalAppointments: 0,
+    upcomingAppointments: [],
+    completedAppointments: [],
+  });
+
+  useEffect(() => {
+    loadAppointmentDetails();
+  }, []);
+
+  const loadAppointmentDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('=== LOADING APPOINTMENT DETAILS ===');
+      
+      // First, let's check if we can get the patient ID
+      const { getOTPResponse } = await import('../utils/otpStorage');
+      const otpResponse = await getOTPResponse();
+      console.log('OTP Response from storage:', otpResponse);
+      
+      if (!otpResponse || !otpResponse.data) {
+        throw new Error('No user data found in storage. Please login again.');
+      }
+      
+      const patientId = otpResponse.data.id;
+      console.log('Patient ID found:', patientId);
+      
+      if (!patientId) {
+        throw new Error('Patient ID not found in user data.');
+      }
+      
+      console.log('Calling appointment API with patient ID:', patientId);
+      const response = await getAppointmentBookingDetailsFromStorage();
+      
+      console.log('API Response:', response);
+      
+      if (response.success) {
+        console.log('Appointment details loaded successfully:', response.data);
+        setAppointments(response.data);
+        
+        // Format the data for display
+        const formatted = formatAppointmentData(response.data);
+        setFormattedData(formatted);
+        console.log('Formatted appointment data:', formatted);
+        console.log('Upcoming appointments count:', formatted.upcomingAppointments.length);
+        console.log('Completed appointments count:', formatted.completedAppointments.length);
+        console.log('Upcoming appointments:', formatted.upcomingAppointments);
+        console.log('Completed appointments:', formatted.completedAppointments);
+        
+        // If no appointments found, show empty state
+        if (formatted.totalAppointments === 0) {
+          console.log('No appointments found in response');
+        }
+      } else {
+        console.error('API call failed:', response);
+        setError(response.message || 'Failed to load appointment details');
+      }
+    } catch (err) {
+      console.error('Error loading appointment details:', err);
+      console.error('Error stack:', err.stack);
+      setError(err.message || 'Failed to load appointment details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAppointmentDetails();
+    setRefreshing(false);
+  };
+
+  // Get filtered appointments based on active filter
+  const getFilteredAppointments = () => {
+    switch (activeFilter) {
+      case 'upcoming':
+        return formattedData.upcomingAppointments;
+      case 'completed':
+        return formattedData.completedAppointments;
+      default:
+        return [...formattedData.upcomingAppointments, ...formattedData.completedAppointments];
+    }
+  };
 
   const renderStars = (rating) => {
     const stars = [];
@@ -74,31 +141,154 @@ const Appointment = ({ navigation }) => {
     return stars;
   };
 
-  const renderDoctorCard = (doctor) => (
+  const renderAppointmentCard = (appointment, index) => {
+    console.log('=== RENDERING APPOINTMENT CARD ===');
+    console.log('Full appointment object:', appointment);
+    
+    // Get the nested appointment data
+    const appointmentData = appointment.appointment || appointment;
+    const doctorData = appointmentData.doctor || appointment.doctor;
+    const patientData = appointmentData.patient || appointment.patient;
+    
+    console.log('Appointment data:', appointmentData);
+    console.log('Doctor data:', doctorData);
+    console.log('Patient data:', patientData);
+    
+    const statusColor = getAppointmentStatusColor(appointmentData.status || appointment.status);
+    const statusText = getAppointmentStatusText(appointmentData.status || appointment.status);
+    
+    // Handle the actual API response structure
+    const appointmentDate = formatAppointmentDate(
+      appointmentData.appointment_date || 
+      appointmentData.date || 
+      appointmentData.created_at || 
+      appointmentData.appointment_date_time ||
+      appointmentData.updated_at
+    );
+    
+    const appointmentTime = formatAppointmentTime(
+      appointmentData.appointment_time || 
+      appointmentData.time || 
+      '09:00:00'
+    );
+    
+    // Get doctor info from the nested doctor data
+    const doctorName = doctorData?.name || 
+                      appointment.doctor_name || 
+                      appointmentData.doctor_name ||
+                      'Dr. Unknown';
+    const doctorSpecialty = doctorData?.specialization_id ? 
+      getSpecializationName(doctorData.specialization_id) : 
+      (doctorData?.specialization || 
+       appointment.specialization ||
+       appointmentData.specialization ||
+       'General Medicine');
+    
+    console.log('Doctor name:', doctorName);
+    console.log('Doctor specialty:', doctorSpecialty);
+    console.log('Doctor specialization_id:', doctorData?.specialization_id);
+    
+    // Format doctor image URL with base URL
+    const baseUrl = 'https://spiderdesk.asia/healto/';
+    const doctorImage = doctorData?.profile_image ? 
+      `${baseUrl}${doctorData.profile_image}` :
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0D6EFD&color=fff&size=100`;
+    
+    // Get payment status from appointment_detail
+    const paymentStatus = appointment.payment_status || appointmentData.payment_status;
+    const paymentAmount = appointment.payment_amount || appointmentData.payment_amount;
+    
+    console.log('Payment status:', paymentStatus);
+    console.log('Payment amount:', paymentAmount);
+    
+    return (
     <TouchableOpacity 
-      key={doctor.id} 
-      style={styles.doctorCard}
-      onPress={() => navigation.navigate('AppointmentDetails', { doctor })}
-    >
-      <View style={styles.doctorInfo}>
-        <Image source={{ uri: doctor.image }} style={styles.doctorImage} />
-        <View style={styles.doctorDetails}>
-          <Text style={styles.doctorName}>{doctor.name}</Text>
-          <Text style={styles.doctorSpecialty}>
-            {doctor.specialty} {doctor.clinic}
-          </Text>
-          <View style={styles.ratingContainer}>
-            <View style={styles.starsContainer}>
-              {renderStars(doctor.rating)}
-            </View>
-            <Text style={styles.ratingText}>{doctor.rating}</Text>
+        key={appointment.id || index} 
+        style={styles.appointmentCard}
+        onPress={() => navigation.navigate('AppointmentDetails', { appointment })}
+      >
+        <View style={styles.appointmentInfo}>
+          <View style={styles.doctorImageContainer}>
+            <Image 
+              source={{ uri: doctorImage }} 
+              style={styles.doctorImage} 
+            />
           </View>
+          <View style={styles.appointmentDetails}>
+            <Text style={styles.doctorName}>{doctorName}</Text>
+            <Text style={styles.doctorSpecialty}>{doctorSpecialty}</Text>
+            <Text style={styles.appointmentDate}>{appointmentDate}</Text>
+            <Text style={styles.appointmentTime}>{appointmentTime}</Text>
+            <View style={styles.statusContainer}>
+              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+                <Text style={styles.statusText}>{statusText}</Text>
+              </View>
+              {paymentStatus && (
+                <View style={[styles.paymentBadge, { 
+                  backgroundColor: paymentStatus === 'paid' ? '#28a745' : '#ffc107' 
+                }]}>
+                  <Text style={styles.paymentText}>
+                    {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+          </Text>
+                </View>
+              )}
+            </View>
+            {appointment.description && (
+              <Text style={styles.descriptionText}>{appointment.description}</Text>
+            )}
+            {paymentAmount && paymentAmount !== '0.00' && (
+              <Text style={styles.amountText}>Amount: ₹{paymentAmount}</Text>
+            )}
         </View>
       </View>
       <TouchableOpacity style={styles.navigateButton}>
         <Icon name="chevron-right" size={16} color="#FFFFFF" />
       </TouchableOpacity>
     </TouchableOpacity>
+    );
+  };
+
+  // Helper function to get specialization name from ID
+  const getSpecializationName = (specializationId) => {
+    const specializationMap = {
+      1: 'Cardiology',
+      2: 'Orthopedics', 
+      3: 'Pediatrics',
+      4: 'Dermatology',
+      5: 'Neurology',
+      6: 'General Medicine',
+      7: 'Gynecology',
+      8: 'Ophthalmology',
+      9: 'ENT',
+      10: 'Psychiatry'
+    };
+    return specializationMap[specializationId] || 'General Medicine';
+  };
+
+  const renderLoadingState = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#0D6EFD" />
+      <Text style={styles.loadingText}>Loading appointment details...</Text>
+    </View>
+  );
+
+  const renderErrorState = () => (
+    <View style={styles.errorContainer}>
+      <Icon name="exclamation-triangle" size={50} color="#dc3545" />
+      <Text style={styles.errorTitle}>Error Loading Appointments</Text>
+      <Text style={styles.errorMessage}>{error}</Text>
+      <TouchableOpacity style={styles.retryButton} onPress={loadAppointmentDetails}>
+        <Text style={styles.retryButtonText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Icon name="calendar-alt" size={50} color="#6c757d" />
+      <Text style={styles.emptyTitle}>No Appointments Found</Text>
+      <Text style={styles.emptyMessage}>You don't have any appointments yet.</Text>
+    </View>
   );
 
   return (
@@ -118,8 +308,139 @@ const Appointment = ({ navigation }) => {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {doctors.map(renderDoctorCard)}
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0D6EFD']}
+            tintColor="#0D6EFD"
+          />
+        }
+      >
+        {loading ? (
+          renderLoadingState()
+        ) : error ? (
+          renderErrorState()
+        ) : formattedData.totalAppointments === 0 ? (
+          renderEmptyState()
+        ) : (
+          <>
+            {/* Summary Cards */}
+            <View style={styles.summaryContainer}>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryNumber}>{formattedData.totalAppointments}</Text>
+                <Text style={styles.summaryLabel}>Total Appointments</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryNumber}>{formattedData.upcomingAppointments.length}</Text>
+                <Text style={styles.summaryLabel}>Upcoming</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryNumber}>{formattedData.completedAppointments.length}</Text>
+                <Text style={styles.summaryLabel}>Completed</Text>
+              </View>
+            </View>
+
+            {/* Filter Buttons */}
+            <View style={styles.filterContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  activeFilter === 'all' && styles.filterButtonActive
+                ]}
+                onPress={() => setActiveFilter('all')}
+              >
+                <Text style={[
+                  styles.filterButtonText,
+                  activeFilter === 'all' && styles.filterButtonTextActive
+                ]}>
+                  All
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  activeFilter === 'upcoming' && styles.filterButtonActive
+                ]}
+                onPress={() => setActiveFilter('upcoming')}
+              >
+                <Icon name="clock" size={14} color={activeFilter === 'upcoming' ? '#FFFFFF' : '#007bff'} />
+                <Text style={[
+                  styles.filterButtonText,
+                  activeFilter === 'upcoming' && styles.filterButtonTextActive
+                ]}>
+                  Upcoming
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  activeFilter === 'completed' && styles.filterButtonActive
+                ]}
+                onPress={() => setActiveFilter('completed')}
+              >
+                <Icon name="check-circle" size={14} color={activeFilter === 'completed' ? '#FFFFFF' : '#28a745'} />
+                <Text style={[
+                  styles.filterButtonText,
+                  activeFilter === 'completed' && styles.filterButtonTextActive
+                ]}>
+                  Completed
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Filtered Appointments List */}
+            {(() => {
+              const filteredAppointments = getFilteredAppointments();
+              const hasAppointments = filteredAppointments.length > 0;
+              
+              if (!hasAppointments) {
+                return (
+                  <View style={styles.appointmentsSection}>
+                    <Text style={styles.sectionTitle}>Your Appointments</Text>
+                    <View style={styles.emptyContainer}>
+                      <Icon name="calendar-alt" size={50} color="#6c757d" />
+                      <Text style={styles.emptyTitle}>
+                        {activeFilter === 'all' ? 'No Appointments Found' : 
+                         activeFilter === 'upcoming' ? 'No Upcoming Appointments' : 
+                         'No Completed Appointments'}
+                      </Text>
+                      <Text style={styles.emptyMessage}>
+                        {activeFilter === 'all' ? 'You don\'t have any appointments yet.' :
+                         activeFilter === 'upcoming' ? 'You don\'t have any upcoming appointments.' :
+                         'You don\'t have any completed appointments.'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
+
+              return (
+                <View style={styles.appointmentsSection}>
+                  <View style={styles.sectionHeader}>
+                    <Icon 
+                      name={activeFilter === 'upcoming' ? 'clock' : activeFilter === 'completed' ? 'check-circle' : 'calendar-alt'} 
+                      size={16} 
+                      color={activeFilter === 'upcoming' ? '#007bff' : activeFilter === 'completed' ? '#28a745' : '#333333'} 
+                    />
+                    <Text style={styles.sectionTitle}>
+                      {activeFilter === 'upcoming' ? 'Upcoming Appointments' :
+                       activeFilter === 'completed' ? 'Completed Appointments' :
+                       'Your Appointments'}
+                    </Text>
+                    <Text style={styles.sectionCount}>({filteredAppointments.length})</Text>
+                  </View>
+                  {filteredAppointments.map((appointment, index) => 
+                    renderAppointmentCard(appointment, index)
+                  )}
+                </View>
+              );
+            })()}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -220,6 +541,249 @@ const styles = StyleSheet.create({
     borderRadius: wp('5%'),
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // New styles for appointment cards
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp('3%'),
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('3%'),
+    padding: wp('4%'),
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: wp('1%'),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  summaryNumber: {
+    fontSize: wp('6%'),
+    fontWeight: 'bold',
+    color: '#0D6EFD',
+    fontFamily: 'Poppins-Bold',
+  },
+  summaryLabel: {
+    fontSize: wp('3%'),
+    color: '#666666',
+    marginTop: hp('0.5%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    marginBottom: hp('3%'),
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('3%'),
+    padding: wp('2%'),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  filterButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: hp('1.5%'),
+    paddingHorizontal: wp('3%'),
+    borderRadius: wp('2%'),
+    marginHorizontal: wp('1%'),
+    backgroundColor: '#F8F9FA',
+  },
+  filterButtonActive: {
+    backgroundColor: '#0D6EFD',
+  },
+  filterButtonText: {
+    fontSize: wp('3.5%'),
+    fontWeight: '600',
+    color: '#666666',
+    marginLeft: wp('1%'),
+    fontFamily: 'Poppins-SemiBold',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  appointmentsSection: {
+    marginBottom: hp('2%'),
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp('2%'),
+  },
+  sectionTitle: {
+    fontSize: wp('4.5%'),
+    fontWeight: 'bold',
+    color: '#333333',
+    marginLeft: wp('2%'),
+    fontFamily: 'Poppins-Bold',
+  },
+  sectionCount: {
+    fontSize: wp('3.5%'),
+    color: '#666666',
+    marginLeft: wp('2%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  appointmentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('3%'),
+    padding: wp('4%'),
+    marginBottom: hp('2%'),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  appointmentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  doctorImageContainer: {
+    marginRight: wp('4%'),
+  },
+  appointmentDetails: {
+    flex: 1,
+  },
+  appointmentDate: {
+    fontSize: wp('3.5%'),
+    color: '#666666',
+    marginBottom: hp('0.3%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  appointmentTime: {
+    fontSize: wp('3.5%'),
+    color: '#0D6EFD',
+    fontWeight: '600',
+    marginBottom: hp('1%'),
+    fontFamily: 'Poppins-SemiBold',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  statusBadge: {
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('0.5%'),
+    borderRadius: wp('2%'),
+    marginRight: wp('2%'),
+    marginBottom: hp('0.5%'),
+  },
+  statusText: {
+    fontSize: wp('3%'),
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  paymentBadge: {
+    paddingHorizontal: wp('2.5%'),
+    paddingVertical: hp('0.3%'),
+    borderRadius: wp('1.5%'),
+    marginBottom: hp('0.5%'),
+  },
+  paymentText: {
+    fontSize: wp('2.5%'),
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  descriptionText: {
+    fontSize: wp('3%'),
+    color: '#666666',
+    marginTop: hp('0.5%'),
+    fontStyle: 'italic',
+    fontFamily: 'Poppins-Regular',
+  },
+  amountText: {
+    fontSize: wp('3%'),
+    color: '#0D6EFD',
+    marginTop: hp('0.3%'),
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  debugText: {
+    fontSize: wp('2.5%'),
+    color: '#999',
+    marginTop: hp('0.5%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('10%'),
+  },
+  loadingText: {
+    fontSize: wp('4%'),
+    color: '#666666',
+    marginTop: hp('2%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('10%'),
+    paddingHorizontal: wp('10%'),
+  },
+  errorTitle: {
+    fontSize: wp('5%'),
+    fontWeight: 'bold',
+    color: '#dc3545',
+    marginTop: hp('2%'),
+    marginBottom: hp('1%'),
+    fontFamily: 'Poppins-Bold',
+  },
+  errorMessage: {
+    fontSize: wp('4%'),
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: hp('3%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  retryButton: {
+    backgroundColor: '#0D6EFD',
+    paddingHorizontal: wp('6%'),
+    paddingVertical: hp('1.5%'),
+    borderRadius: wp('2%'),
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: wp('4%'),
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp('10%'),
+    paddingHorizontal: wp('10%'),
+  },
+  emptyTitle: {
+    fontSize: wp('5%'),
+    fontWeight: 'bold',
+    color: '#6c757d',
+    marginTop: hp('2%'),
+    marginBottom: hp('1%'),
+    fontFamily: 'Poppins-Bold',
+  },
+  emptyMessage: {
+    fontSize: wp('4%'),
+    color: '#666666',
+    textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
   },
 });
 

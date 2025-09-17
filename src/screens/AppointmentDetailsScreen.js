@@ -17,9 +17,75 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import { 
+  getAppointmentStatusColor,
+  getAppointmentStatusText,
+  formatAppointmentDate,
+  formatAppointmentTime
+} from '../services/appointmentBookingApi';
+
+// Helper function to get specialization name from ID
+const getSpecializationName = (specializationId) => {
+  const specializationMap = {
+    1: 'Cardiology',
+    2: 'Orthopedics', 
+    3: 'Pediatrics',
+    4: 'Dermatology',
+    5: 'Neurology',
+    6: 'General Medicine',
+    7: 'Gynecology',
+    8: 'Ophthalmology',
+    9: 'ENT',
+    10: 'Psychiatry'
+  };
+  return specializationMap[specializationId] || 'General Medicine';
+};
 
 const AppointmentDetailsScreen = ({ navigation, route }) => {
-  const { doctor } = route.params || {};
+  const { appointment, doctor } = route.params || {};
+  
+  // Extract data from appointment object
+  const appointmentData = appointment?.appointment || appointment;
+  const doctorData = appointmentData?.doctor || appointment?.doctor || doctor;
+  const patientData = appointmentData?.patient || appointment?.patient;
+  
+  // Get appointment details
+  const appointmentDate = formatAppointmentDate(
+    appointmentData?.appointment_date || 
+    appointmentData?.date || 
+    appointmentData?.created_at
+  );
+  
+  const appointmentTime = formatAppointmentTime(
+    appointmentData?.appointment_time || 
+    appointmentData?.time || 
+    '09:00:00'
+  );
+  
+  const status = appointmentData?.status || appointment?.status;
+  const statusColor = getAppointmentStatusColor(status);
+  const statusText = getAppointmentStatusText(status);
+  
+  const paymentStatus = appointment?.payment_status || appointmentData?.payment_status;
+  const paymentAmount = appointment?.payment_amount || appointmentData?.payment_amount;
+  const description = appointment?.description || appointmentData?.description;
+  const tokenNumber = appointment?.token_number || appointmentData?.token_number || appointment?.id || appointmentData?.id;
+  
+  // Get doctor info
+  const doctorName = doctorData?.name || 'Dr. Unknown';
+  const doctorSpecialty = doctorData?.specialization_id ? 
+    getSpecializationName(doctorData.specialization_id) : 
+    (doctorData?.specialization || 'General Medicine');
+  
+  const baseUrl = 'https://spiderdesk.asia/healto/';
+  const doctorImage = doctorData?.profile_image ? 
+    `${baseUrl}${doctorData.profile_image}` :
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0D6EFD&color=fff&size=100`;
+  
+  // Get patient info
+  const patientName = patientData?.name || 'Patient';
+  const patientPhone = patientData?.phone_number || patientData?.phone || '';
+  const patientEmail = patientData?.email || '';
 
   const renderStars = (rating) => {
     const stars = [];
@@ -70,24 +136,60 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
         {/* Doctor Information Card */}
         <View style={styles.doctorCard}>
           <Image 
-            source={{ uri: doctor?.image || 'https://ui-avatars.com/api/?name=Dr+Aishwarya&background=0D6EFD&color=fff&size=100' }} 
+            source={{ uri: doctorImage }} 
             style={styles.doctorImage} 
           />
           <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
+            <Text style={styles.doctorName}>{doctorName}</Text>
             <Text style={styles.doctorSpecialty}>
-              {doctor?.specialty || 'Cardiology'} From {doctor?.clinic || 'Kl Clinic'}
+              {doctorSpecialty}
             </Text>
             <View style={styles.ratingContainer}>
-              <Text style={styles.ratingText}>4.5</Text>
+              <Text style={styles.ratingText}>{doctorData?.rating || '4.5'}</Text>
               <View style={styles.starsContainer}>
-                {renderStars(4.5)}
+                {renderStars(doctorData?.rating || 4.5)}
               </View>
             </View>
           </View>
           <TouchableOpacity style={styles.callButton}>
             <Icon name="phone" size={16} color="#FFFFFF" />
           </TouchableOpacity>
+        </View>
+
+        {/* Appointment Status Card */}
+        <View style={styles.statusCard}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Appointment Status:</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+              <Text style={styles.statusText}>{statusText}</Text>
+            </View>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Payment Status:</Text>
+            <View style={[styles.paymentBadge, { 
+              backgroundColor: paymentStatus === 'paid' ? '#28a745' : '#ffc107' 
+            }]}>
+              <Text style={{color:"black",fontSize:wp('3%'),fontWeight:'600',fontFamily:'Poppins-SemiBold'}}>
+                {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Date & Time:</Text>
+            <Text style={styles.dateTimeText}>{appointmentDate} at {appointmentTime}</Text>
+          </View>
+          {description && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Description:</Text>
+              <Text style={styles.descriptionText}>{description}</Text>
+            </View>
+          )}
+          {paymentAmount && paymentAmount !== '0.00' && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Amount:</Text>
+              <Text style={styles.amountText}>₹{paymentAmount}</Text>
+            </View>
+          )}
         </View>
 
         {/* Personal Information Section */}
@@ -98,7 +200,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <Icon name="user" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value="Tarun S"
+              value={patientName}
               editable={false}
               placeholder="Full Name"
             />
@@ -108,7 +210,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <Icon name="phone" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value="**********"
+              value={patientPhone || 'Not provided'}
               editable={false}
               placeholder="Mobile Number"
             />
@@ -118,7 +220,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <Icon name="envelope" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value="taruntarun5@gmail.com"
+              value={patientEmail || 'Not provided'}
               editable={false}
               placeholder="Email"
             />
@@ -130,7 +232,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.sectionTitle}>Reason For Visit</Text>
           <View style={styles.textAreaContainer}>
             <Text style={styles.textArea}>
-              I've been experiencing frequent chest discomfort, occasional shortness of breath, and unusual fatigue even during light activity.
+              {description || 'No description provided'}
             </Text>
           </View>
         </View>
@@ -142,7 +244,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <Icon name="clock" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value="10:30 AM"
+              value={appointmentTime}
               editable={false}
               placeholder="Time"
             />
@@ -156,7 +258,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <Icon name="calendar" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value="04th, June, Thursday, 2025"
+              value={appointmentDate}
               editable={false}
               placeholder="Date"
             />
@@ -167,10 +269,9 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment</Text>
           <View style={styles.paymentContainer}>
-            <Text style={styles.paymentText}>Full Payment</Text>
-            <View style={styles.paidBadge}>
-              <Text style={styles.paidText}>INR 1500 Paid</Text>
-            </View>
+            <Text style={styles.paymentText}>
+              {paymentAmount ? `INR ${paymentAmount}` : 'INR 0'} - {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+            </Text>
           </View>
         </View>
 
@@ -181,7 +282,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
             <Icon name="bullseye" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value="26"
+              value={tokenNumber ? tokenNumber.toString() : 'Not assigned'}
               editable={false}
               placeholder="Token Number"
             />
@@ -342,38 +443,84 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
   },
   paymentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: wp('2%'),
     paddingHorizontal: wp('4%'),
     paddingVertical: hp('1.5%'),
-    elevation: 1,
+  },
+  paymentText: {
+    fontSize: wp('3%'),
+    color: '#000000',
+    fontFamily: 'Poppins-Regular',
+  },
+  // New styles for status card
+  statusCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('3%'),
+    padding: wp('4%'),
+    marginBottom: hp('2%'),
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
   },
-  paymentText: {
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp('1%'),
+  },
+  statusLabel: {
     fontSize: wp('4%'),
     color: '#333333',
-    fontFamily: 'Poppins-Regular',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+    flex: 1,
   },
-  paidBadge: {
-    backgroundColor: '#28A745',
+  statusBadge: {
     paddingHorizontal: wp('3%'),
-    paddingVertical: hp('0.8%'),
-    borderRadius: wp('1.5%'),
+    paddingVertical: hp('0.5%'),
+    borderRadius: wp('2%'),
   },
-  paidText: {
-    fontSize: wp('3.5%'),
+  statusText: {
+    fontSize: wp('3%'),
     color: '#FFFFFF',
     fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
+  },
+  paymentBadge: {
+    paddingHorizontal: wp('2.5%'),
+    paddingVertical: hp('0.3%'),
+    borderRadius: wp('1.5%'),
+  },
+  paymentText: {
+    fontSize: wp('4%'),
+    color: 'black',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  dateTimeText: {
+    fontSize: wp('3.5%'),
+    color: '#0D6EFD',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  descriptionText: {
+    fontSize: wp('3.5%'),
+    color: '#666666',
+    fontStyle: 'italic',
+    fontFamily: 'Poppins-Regular',
+    flex: 1,
+    textAlign: 'right',
+  },
+  amountText: {
+    fontSize: wp('3.5%'),
+ 
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+    color:"black"
   },
 });
 

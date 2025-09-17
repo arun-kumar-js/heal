@@ -27,6 +27,7 @@ import {
   selectSearchQuery 
 } from '../store/selectors/doctorsSelectors';
 import BackButton from '../components/BackButton';
+import { getOTPResponse, getFormattedUserProfile } from '../utils/otpStorage';
 
 const IMAGE_BASE_URL = 'https://spiderdesk.asia/healto/';
 

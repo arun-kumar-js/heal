@@ -91,8 +91,8 @@ const PaymentScreen = ({ navigation, route }) => {
   // Set default amount if none is found
   useEffect(() => {
     if (!amount || amount === '0' || amount === 0) {
-      console.log('⚠️ PAYMENT SCREEN - No amount found, setting default amount of 500');
-      dispatch(setManualAmount(500));
+      console.log('⚠️ PAYMENT SCREEN - No amount found, setting default amount of 150');
+      dispatch(setManualAmount(150));
     }
   }, [amount, dispatch]);
 
@@ -160,7 +160,7 @@ const PaymentScreen = ({ navigation, route }) => {
   };
 
   const handlePayNow = () => {
-    const fullAmount = amount || 1500; // Use amount from Redux or fallback to 1500
+    const fullAmount = amount || 150; // Use amount from Redux or fallback to 150
     const halfAmount = Math.round(fullAmount / 2);
     const finalAmount = selectedPayment === 'Full Payment' ? fullAmount : halfAmount;
     
@@ -331,7 +331,7 @@ const PaymentScreen = ({ navigation, route }) => {
           
           <PaymentOption
             title="Full Payment"
-            amount={`₹ ${amount || 1500}`}
+            amount={`₹ ${amount || 150}`}
             isSelected={selectedPayment === 'Full Payment'}
             onPress={() => setSelectedPayment('Full Payment')}
             color="#4CAF50"
@@ -339,7 +339,7 @@ const PaymentScreen = ({ navigation, route }) => {
           
           <PaymentOption
             title="Partial Payment"
-            amount={`₹ ${Math.round((amount || 1500) / 2)}`}
+            amount={`₹ ${Math.round((amount || 150) / 2)}`}
             isSelected={selectedPayment === 'Partial Payment'}
             onPress={() => setSelectedPayment('Partial Payment')}
             color="#FF9800"
@@ -348,7 +348,7 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={styles.totalAmountContainer}>
             <Text style={styles.totalAmountLabel}>Total Amount</Text>
             <Text style={styles.totalAmountValue}>
-              {selectedPayment === 'Full Payment' ? `₹ ${amount }` : `₹ ${Math.round((amount || 1500) / 2)}`}
+              {selectedPayment === 'Full Payment' ? `₹ ${amount || 150}` : `₹ ${Math.round((amount || 150) / 2)}`}
             </Text>
           </View>
         </View>

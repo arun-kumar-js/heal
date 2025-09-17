@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -11,20 +10,103 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { getUserData, saveUserData } from '../utils/userStorage';
+import { getLoginResponse } from '../utils/loginDataStorage';
+import { getOTPResponse } from '../utils/otpStorage';
 
 const ProfileScreen = ({ navigation }) => {
-  const [name, setName] = useState('Krishna S');
-  const [phoneNumber, setPhoneNumber] = useState('7200597117');
-  const [email, setEmail] = useState('taruntarun5@gmail.com');
-  const [gender, setGender] = useState('Male');
+  const [name, setName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [gender, setGender] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleSaveChanges = () => {
+  // Load user data from async storage on component mount
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+
+  const loadUserData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Loading user data from async storage...');
+      
+      // Priority order: OTP Response > Login Response > User Storage
+      let profileData = null;
+      let dataSource = '';
+      
+      // First try to get data from OTP response
+      const otpResponse = await getOTPResponse();
+      console.log('🔐 OTP response data:', otpResponse);
+      
+      if (otpResponse && otpResponse.data) {
+        const userData = otpResponse.data;
+        console.log('✅ Using OTP response data:', userData);
+        
+        profileData = {
+          name: userData.name || userData.full_name || '',
+          phone: userData.phone_number || userData.phone || '',
+          email: userData.email || '',
+          gender: userData.gender || ''
+        };
+        dataSource = 'OTP Response';
+      } else {
+        // Try login response
+        const loginResponse = await getLoginResponse();
+        console.log('📱 Login response data:', loginResponse);
+        
+        if (loginResponse && loginResponse.data) {
+          const userData = loginResponse.data;
+          console.log('✅ Using login response data:', userData);
+          
+          profileData = {
+            name: userData.name || userData.full_name || '',
+            phone: userData.phone_number || userData.phone || '',
+            email: userData.email || '',
+            gender: userData.gender || ''
+          };
+          dataSource = 'Login Response';
+        } else {
+          // Fallback to user storage
+          console.log('📦 OTP/Login data not found, trying user storage...');
+          const userData = await getUserData();
+          console.log('💾 User storage data:', userData);
+          
+          profileData = {
+            name: userData.name || '',
+            phone: userData.phone || '',
+            email: userData.email || '',
+            gender: userData.gender || ''
+          };
+          dataSource = 'User Storage';
+        }
+      }
+      
+      console.log(`👤 Profile data from ${dataSource}:`, profileData);
+      
+      setName(profileData.name);
+      setPhoneNumber(profileData.phone);
+      setEmail(profileData.email);
+      setGender(profileData.gender);
+      
+      console.log('✅ User data loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading user data:', error);
+      Alert.alert('Error', 'Failed to load user data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveChanges = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Please enter your name');
       return;
@@ -38,6 +120,23 @@ const ProfileScreen = ({ navigation }) => {
       return;
     }
 
+    try {
+      console.log('💾 Saving user data to async storage...');
+      
+      // Save updated user data to async storage
+      const updatedUserData = {
+        name: name.trim(),
+        phone: phoneNumber.trim(),
+        email: email.trim(),
+        gender: gender,
+      };
+
+      console.log('📝 Data to be saved:', updatedUserData);
+
+      const success = await saveUserData(updatedUserData);
+      
+      if (success) {
+        console.log('✅ User data saved successfully to async storage');
     Alert.alert(
       'Success',
       'Profile updated successfully!',
@@ -48,6 +147,14 @@ const ProfileScreen = ({ navigation }) => {
         }
       ]
     );
+      } else {
+        console.log('❌ Failed to save user data to async storage');
+        Alert.alert('Error', 'Failed to save profile data');
+      }
+    } catch (error) {
+      console.error('❌ Error saving user data:', error);
+      Alert.alert('Error', 'Failed to save profile data');
+    }
   };
 
   const handleEdit = () => {
@@ -60,8 +167,19 @@ const ProfileScreen = ({ navigation }) => {
     };
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
       
       {/* Header */}
@@ -168,6 +286,7 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
+
       </ScrollView>
 
       {/* Save Changes Button */}
@@ -290,6 +409,17 @@ const styles = StyleSheet.create({
     fontSize: wp('4.5%'),
     fontWeight: '600',
     color: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    fontSize: wp('4%'),
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
   },
 });
 

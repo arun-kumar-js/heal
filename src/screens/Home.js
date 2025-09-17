@@ -18,16 +18,69 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import axios from 'axios';
+import { useDispatch, useSelector } from 'react-redux';
+import { setSelectedCategory } from '../store/slices/doctorsSlice';
+import { selectDoctors } from '../store/selectors/doctorsSelectors';
+import { getOTPResponse } from '../utils/otpStorage';
 
 const Home = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const doctorsFromRedux = useSelector(selectDoctors);
   const [activeFilter, setActiveFilter] = useState('All');
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState({
+    name: 'User',
+    profileImage: 'https://randomuser.me/api/portraits/men/32.jpg',
+    location: 'Location not set',
+    email: '',
+    phone: '',
+    age: '',
+    gender: '',
+    bloodGroup: '',
+    patientId: '',
+  });
 
-  // Fetch doctors data on component mount
+  // Fetch doctors data and user data on component mount
   useEffect(() => {
     loadDoctors();
+    loadUserData();
   }, []);
+
+  // Load user data from OTP response in AsyncStorage
+  const loadUserData = async () => {
+    try {
+      const otpResponse = await getOTPResponse();
+      if (otpResponse && otpResponse.data) {
+        const userInfo = otpResponse.data;
+        
+        // Format profile image URL with base URL
+        const baseUrl = 'https://spiderdesk.asia/healto/';
+        const profileImageUrl = userInfo.profile_image 
+          ? `${baseUrl}${userInfo.profile_image}`
+          : 'https://randomuser.me/api/portraits/men/32.jpg';
+        
+        const formattedUserData = {
+          name: userInfo.name || 'User',
+          profileImage: profileImageUrl,
+          location: userInfo.address || 'Location not set',
+          email: userInfo.email || '',
+          phone: userInfo.phone_number || '',
+          age: userInfo.age || '',
+          gender: userInfo.gender || '',
+          bloodGroup: userInfo.blood_group || '',
+          patientId: userInfo.patient_unique_id || '',
+        };
+        
+        setUserData(formattedUserData);
+        console.log('User data loaded from OTP response:', formattedUserData);
+      } else {
+        console.log('No OTP response found, using default data');
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
 
   const loadDoctors = async () => {
     setLoading(true);
@@ -53,23 +106,23 @@ const Home = ({ navigation }) => {
     }
   };
 console.log("doctors", doctors);
-
-  // Get first 3 doctors for display
-  const displayedDoctors = doctors && doctors.length > 0 ? doctors.slice(0, 3) : [];
   const hospitalData = [
     {
       name: 'Hospitals',
       image: require('../Assets/Images/hospital.png'),
+      type: 'hospital',
       //color: '#BDE4F4',
     },
     {
       name: 'Clinics',
       image: require('../Assets/Images/clinic.png'),
+      type: 'clinic',
       //  color: '#F8C8D5',
     },
     {
       name: 'Multi Specialty\nClinic',
       image: require('../Assets/Images/multi.png'),
+      type: 'multispeciality',
       // color: '#F1B7B2',
     },
   ];
@@ -127,7 +180,12 @@ console.log("doctors", doctors);
 
   // Helper function to get doctor specialty
   const getDoctorSpecialty = (doctor) => {
-    // Map specialization_id to actual specialty names
+    // Use the specialization.name from API response if available
+    if (doctor?.specialization?.name) {
+      return doctor.specialization.name;
+    }
+    
+    // Fallback to mapping specialization_id if specialization.name is not available
     const specialtyMap = {
       1: 'Cardiology',
       2: 'Orthopedics', 
@@ -141,7 +199,6 @@ console.log("doctors", doctors);
       10: 'Psychiatry'
     };
     
-    // Use specialization_id if available, otherwise fallback to type
     if (doctor.specialization_id) {
       return specialtyMap[doctor.specialization_id] || 'General Medicine';
     }
@@ -154,6 +211,22 @@ console.log("doctors", doctors);
     };
     return typeMap[doctor.type] || 'General Medicine';
   };
+
+  // Use Redux doctors data if available, otherwise use local state
+  const allDoctors = doctorsFromRedux && doctorsFromRedux.length > 0 ? doctorsFromRedux : doctors;
+  
+  // Filter doctors based on active filter
+  const filteredDoctors = allDoctors.filter(doctor => {
+    if (activeFilter === 'All') {
+      return true;
+    }
+    
+    const doctorSpecialty = getDoctorSpecialty(doctor);
+    return doctorSpecialty === activeFilter;
+  });
+  
+  // Get first 3 doctors for display from filtered results
+  const displayedDoctors = filteredDoctors && filteredDoctors.length > 0 ? filteredDoctors.slice(0, 3) : [];
 
   // Prepare doctors data for display
   const doctorData = displayedDoctors.map((doctor, index) => ({
@@ -192,26 +265,30 @@ console.log("doctors", doctors);
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          scrollEnabled={activeFilter === 'All'}
         >
           <View style={styles.header}>
             <View style={styles.headerTop}>
               <Image
                 source={{
-                  uri: 'https://randomuser.me/api/portraits/men/32.jpg',
+                  uri: userData.profileImage || 'https://randomuser.me/api/portraits/men/32.jpg',
                 }}
                 style={styles.profileImage}
               />
               <View style={styles.headerTextContainer}>
-                <Text style={styles.greetingText}>Hi, Krishna!</Text>
+                <Text style={styles.greetingText}>Hi, {userData.name}</Text>
                 <View style={styles.locationContainer}>
                   <Text style={styles.locationText}>
-                    Luz Corner, Mylapore, Chen...
+                    {userData.location}
                   </Text>
                   <Icon name="map-marker-alt" size={16} color="#FFFFFF" style={styles.locationIcon} />
                 </View>
               </View>
             </View>
-            <View style={styles.searchContainer}>
+            <TouchableOpacity 
+              style={styles.searchContainer}
+              onPress={() => navigation.navigate('DoctorListScreen')}
+            >
               <Icon
                 name="search"
                 size={20}
@@ -222,8 +299,10 @@ console.log("doctors", doctors);
                 placeholder="Search by Doctor, Depa..."
                 placeholderTextColor="#888"
                 style={styles.searchInput}
+                editable={false}
+                pointerEvents="none"
               />
-            </View>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.mainContent}>
@@ -236,7 +315,10 @@ console.log("doctors", doctors);
                   <TouchableOpacity 
                     key={index} 
                     style={styles.categoryItem}
-                    onPress={() => navigation.navigate('ClinicsScreen')}
+                    onPress={() => navigation.navigate('ClinicsScreen', { 
+                      selectedType: item.name,
+                      selectedTypeFormatted: item.name
+                    })}
                   >
                     <View
                       style={[
@@ -261,7 +343,20 @@ console.log("doctors", doctors);
               <Text style={styles.cardSubtitle}>Select the Department</Text>
               <View style={styles.departmentGrid}>
                 {departmentData.map((item, index) => (
-                  <TouchableOpacity key={index} style={styles.departmentItem}>
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.departmentItem}
+                    onPress={() => {
+                      if (item.viewAll) {
+                        // Navigate to Category screen for "View All"
+                        navigation.navigate('Category');
+                      } else {
+                        // Set selected category in Redux and navigate to DoctorListScreen
+                        dispatch(setSelectedCategory(item.name));
+                        navigation.navigate('DoctorListScreen');
+                      }
+                    }}
+                  >
                     {item.viewAll ? (
                       <View
                         style={[
@@ -304,11 +399,16 @@ console.log("doctors", doctors);
             <View style={styles.doctorsSection}>
               <View style={styles.doctorsHeader}>
                 <View>
-                  <Text style={styles.headerTextContainer}>Top Doctors?</Text>
+                  <Text  style={[styles.cardTitle, { color: '#003784' }]}>Top Doctors?</Text>
                   <Text style={styles.cardSubtitle}>Select the Department</Text>
                   
                 </View>
-                <TouchableOpacity onPress={() => navigation.navigate('DoctorListScreen', { doctors: doctors })}>
+                <TouchableOpacity onPress={() => {
+                  // Clear category filter to show all doctors
+                  dispatch(setSelectedCategory(null));
+                  setActiveFilter('All');
+                  navigation.navigate('DoctorListScreen');
+                }}>
                   <Text style={styles.seeAllLink}>See All</Text>
                 </TouchableOpacity>
               </View>
@@ -326,7 +426,15 @@ console.log("doctors", doctors);
                         ? styles.activeFilterChip
                         : styles.inactiveFilterChip,
                     ]}
-                    onPress={() => setActiveFilter(item.name)}
+                    onPress={() => {
+                      setActiveFilter(item.name);
+                      // Also update Redux state for consistency
+                      if (item.name === 'All') {
+                        dispatch(setSelectedCategory(null));
+                      } else {
+                        dispatch(setSelectedCategory(item.name));
+                      }
+                    }}
                   >
                     {item.icon && (
                       <Image
@@ -353,48 +461,102 @@ console.log("doctors", doctors);
                 ))}
               </ScrollView>
               <View style={styles.doctorsGrid}>
-                {doctorData.map((doctor, index) => (
-                  <TouchableOpacity key={index} style={styles.doctorCard}>
-                    <ImageBackground
-                      source={{ uri: doctor.image }}
-                      style={styles.doctorImage}
-                      imageStyle={{ borderRadius: 15 }}
-                    >
-                      {doctor.viewAll ? (
-                        <TouchableOpacity 
-                          style={styles.viewAllDoctorOverlay}
-                          onPress={() => navigation.navigate('DoctorListScreen', { doctors: doctors })}
+                {(() => {
+                  // Filter doctors based on active filter
+                  const filteredDoctors = doctorData.filter(doctor => {
+                    if (activeFilter === 'All') {
+                      return true;
+                    }
+                    return doctor.specialty === activeFilter;
+                  });
+                  
+                  // If no doctors found for the selected category, show only View All card
+                  if (activeFilter !== 'All' && filteredDoctors.length === 0) {
+                    return (
+                      <TouchableOpacity style={styles.doctorCard}>
+                        <ImageBackground
+                          source={{ uri: 'https://placehold.co/300x400/d9534f/ffffff.png?text=Doctor' }}
+                          style={styles.doctorImage}
+                          imageStyle={{ borderRadius: 15 }}
                         >
-                          <Text style={styles.viewAllDoctorText}>View All</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <>
-                          <View style={styles.ratingBadge}>
-                            <Icon
-                              name="star"
-                              size={12}
-                              color="#FFC107"
-                              solid
-                              style={{ marginRight: 4 }}
-                            />
-                            <Text style={styles.ratingText}>
-                              {doctor.rating}
-                            </Text>
-                          </View>
-                          <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.7)']}
-                            style={styles.doctorInfoGradient}
+                          <TouchableOpacity 
+                            style={styles.viewAllDoctorOverlay}
+                            onPress={() => {
+                              // Clear category filter to show all doctors
+                              dispatch(setSelectedCategory(null));
+                              setActiveFilter('All');
+                              navigation.navigate('DoctorListScreen');
+                            }}
                           >
-                            <Text style={styles.doctorName}>{doctor.name}</Text>
-                            <Text style={styles.doctorSpecialty}>
-                              {doctor.specialty}
-                            </Text>
-                          </LinearGradient>
-                        </>
-                      )}
-                    </ImageBackground>
-                  </TouchableOpacity>
-                ))}
+                            <Text style={styles.viewAllDoctorText}>View All</Text>
+                          </TouchableOpacity>
+                        </ImageBackground>
+                      </TouchableOpacity>
+                    );
+                  }
+                  
+                  return filteredDoctors.map((doctor, index) => (
+                    <TouchableOpacity 
+                      key={index} 
+                      style={styles.doctorCard}
+                      onPress={() => {
+                        if (!doctor.viewAll) {
+                          // Find the original doctor data from the API response
+                          const originalDoctor = allDoctors.find(d => d.id === doctor.id);
+                          if (originalDoctor) {
+                            navigation.navigate('DoctorAppointment', {
+                              doctor: originalDoctor
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      <ImageBackground
+                        source={{ uri: doctor.image }}
+                        style={styles.doctorImage}
+                        imageStyle={{ borderRadius: 15 }}
+                      >
+                        {doctor.viewAll ? (
+                          <TouchableOpacity 
+                            style={styles.viewAllDoctorOverlay}
+                            onPress={() => {
+                              // Clear category filter to show all doctors
+                              dispatch(setSelectedCategory(null));
+                              setActiveFilter('All');
+                              navigation.navigate('DoctorListScreen');
+                            }}
+                          >
+                            <Text style={styles.viewAllDoctorText}>View All</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <>
+                            <View style={styles.ratingBadge}>
+                              <Icon
+                                name="star"
+                                size={12}
+                                color="#FFC107"
+                                solid
+                                style={{ marginRight: 4 }}
+                              />
+                              <Text style={styles.ratingText}>
+                                {doctor.rating}
+                              </Text>
+                            </View>
+                            <LinearGradient
+                              colors={['transparent', 'rgba(0,0,0,0.7)']}
+                              style={styles.doctorInfoGradient}
+                            >
+                              <Text style={styles.doctorName}>{doctor.name}</Text>
+                              <Text style={styles.doctorSpecialty}>
+                                {doctor.specialty}
+                              </Text>
+                            </LinearGradient>
+                          </>
+                        )}
+                      </ImageBackground>
+                    </TouchableOpacity>
+                  ));
+                })()}
               </View>
             </View>
           </View>

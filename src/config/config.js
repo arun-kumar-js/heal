@@ -7,3 +7,5 @@ export const OTP_URL = BASE_URL + 'patient/verify-otp';
 export const DOCTORS_URL = BASE_URL + 'doctors';
 export const APPOINTMENT_FETCH_URL = BASE_URL + 'appointmentFetch';
 export const STORE_USER_DETAIL_URL = BASE_URL + 'storeUserDetail';
+export const CLINICS_BY_DOCTORS_URL = BASE_URL + 'clinics/by/doctors';
+export const CATEGORIES_URL = BASE_URL + 'categories';

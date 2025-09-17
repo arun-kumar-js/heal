@@ -83,7 +83,7 @@ export const convertShortDateFormat = (dateString) => {
   // Get local date components to avoid timezone conversion issues
   const year = targetDate.getFullYear();
   const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-  const dayStr = String(targetDate.getDate() + 1).padStart(2, '0'); // Add +1 to the day
+  const dayStr = String(targetDate.getDate() ).padStart(2, '0'); // Add +1 to the day
   const formattedDate = `${year}-${month}-${dayStr}`;
   
   // Additional validation to ensure we have the correct date
