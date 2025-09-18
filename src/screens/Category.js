@@ -18,6 +18,7 @@ import {
 import { useDispatch } from 'react-redux';
 import { setSelectedCategory } from '../store/slices/doctorsSlice';
 import { PoppinsFonts } from '../config/fonts';
+import { fetchHospitalsBySpecialization } from '../services/hospitalsBySpecializationApi';
 
 const Category = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -122,10 +123,40 @@ const Category = ({ navigation }) => {
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCategoryPress = (category) => {
-    // Set selected category in Redux and navigate
-    dispatch(setSelectedCategory(category.name));
-    navigation.navigate('DoctorListScreen');
+  const handleCategoryPress = async (category) => {
+    try {
+      // Set selected category in Redux
+      dispatch(setSelectedCategory(category.name));
+      
+      // Show loading state
+      console.log('Fetching hospitals for category:', category.name);
+      
+      // Make API call to get hospitals by specialization
+      const result = await fetchHospitalsBySpecialization(category.name);
+      
+      if (result.success && result.data) {
+        console.log('Hospitals fetched successfully:', result.data);
+        
+        // Ensure data is an array
+        const hospitalsData = Array.isArray(result.data) ? result.data : [];
+        
+        // Navigate to hospital list screen with the fetched data
+        navigation.navigate('HospitalListByCategoryScreen', {
+          selectedCategory: category.name,
+          hospitals: hospitalsData
+        });
+      } else {
+        console.error('Failed to fetch hospitals:', result.error);
+        
+        // Fallback to doctor list if hospital API fails
+        navigation.navigate('DoctorListScreen');
+      }
+    } catch (error) {
+      console.error('Error in handleCategoryPress:', error);
+      
+      // Fallback to doctor list if there's an error
+      navigation.navigate('DoctorListScreen');
+    }
   };
 
   const renderCategoryCard = (category) => {

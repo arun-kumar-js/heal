@@ -9,3 +9,4 @@ export const APPOINTMENT_FETCH_URL = BASE_URL + 'appointmentFetch';
 export const STORE_USER_DETAIL_URL = BASE_URL + 'storeUserDetail';
 export const CLINICS_BY_DOCTORS_URL = BASE_URL + 'clinics/by/doctors';
 export const CATEGORIES_URL = BASE_URL + 'categories';
+export const HOSPITALS_BY_SPECIALIZATION_URL = BASE_URL + 'specialization/by/clinic';

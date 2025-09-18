@@ -352,9 +352,10 @@ console.log("doctors", doctors);
                         // Navigate to Category screen for "View All"
                         navigation.navigate('Category');
                       } else {
-                        // Set selected category in Redux and navigate to DoctorListScreen
-                        dispatch(setSelectedCategory(item.name));
-                        navigation.navigate('DoctorListScreen');
+                        // Navigate to HospitalListByCategoryScreen with selected category
+                        navigation.navigate('HospitalListByCategoryScreen', {
+                          selectedCategory: item.name
+                        });
                       }
                     }}
                   >

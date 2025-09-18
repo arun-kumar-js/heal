@@ -23,6 +23,9 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import Appointment from './src/screens/Appointment';
 import AppointmentDetailsScreen from './src/screens/AppointmentDetailsScreen';
+import HospitalListByCategoryScreen from './src/screens/HospitalListByCategoryScreen';
+import Category from './src/screens/Category';
+import DoctorBySpc from './src/screens/DoctorBySpc';
 
 const Stack = createNativeStackNavigator();
 
@@ -216,6 +219,21 @@ export default function App() {
          <Stack.Screen
           name="ProfileCreatedScreen"
           component={ProfileCreatedScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="HospitalListByCategoryScreen"
+          component={HospitalListByCategoryScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Category"
+          component={Category}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DoctorBySpc"
+          component={DoctorBySpc}
           options={{ headerShown: false }}
         />
 
