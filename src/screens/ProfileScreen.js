@@ -10,156 +10,318 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
-import { getUserData, saveUserData } from '../utils/userStorage';
-import { getLoginResponse } from '../utils/loginDataStorage';
-import { getOTPResponse } from '../utils/otpStorage';
+// Removed fallback storage imports - only using Redux now
 import { PoppinsFonts } from '../config/fonts';
+import { updatePatientProfile, validatePatientData } from '../services/patientUpdateApi';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectPatientId, selectPatientData, selectFormattedUserData, loadUserOTPResponse, logoutUser, updatePatientData, fetchUserProfile, logUserSliceData, selectUser } from '../store/slices/userSlice';
+import { performCompleteLogout, getLogoutConfirmation } from '../utils/logoutUtils';
 
 const ProfileScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const patientId = useSelector(selectPatientId);
+  const patientData = useSelector(selectPatientData);
+  const userData = useSelector(selectFormattedUserData);
+  const userState = useSelector(selectUser);
+  
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [gender, setGender] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Load user data from async storage on component mount
+  // Load user data from Redux only
   useEffect(() => {
     loadUserData();
   }, []);
 
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 Profile screen focused - refreshing data...');
+      loadUserData();
+    }, [])
+  );
+
+  // Sync form fields when Redux patient data changes
+  useEffect(() => {
+    if (patientData) {
+      console.log('🔄 Syncing form fields with Redux patient data:', patientData);
+      
+      // Log complete user slice data when patient data changes
+      const state = { user: userState };
+      logUserSliceData(state);
+      
+      const newName = patientData.name || patientData.patient_name || '';
+      const newPhone = patientData.phone_number || patientData.phone || '';
+      const newEmail = patientData.email || '';
+      const newGender = patientData.gender || '';
+      
+      // Always sync when Redux data changes
+      setName(newName);
+      setPhoneNumber(newPhone);
+      setEmail(newEmail);
+      setGender(newGender);
+      
+      console.log('✅ Form fields synced with Redux data:', {
+        name: newName,
+        phone: newPhone,
+        email: newEmail,
+        gender: newGender
+      });
+    }
+  }, [patientData, userState]);
 
   const loadUserData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading user data from async storage...');
-      
-      // Priority order: OTP Response > Login Response > User Storage
-      let profileData = null;
-      let dataSource = '';
-      
-      // First try to get data from OTP response
-      const otpResponse = await getOTPResponse();
-      console.log('🔐 OTP response data:', otpResponse);
-      
-      if (otpResponse && otpResponse.data) {
-        const userData = otpResponse.data;
-        console.log('✅ Using OTP response data:', userData);
-        
-        profileData = {
-          name: userData.name || userData.full_name || '',
-          phone: userData.phone_number || userData.phone || '',
-          email: userData.email || '',
-          gender: userData.gender || ''
-        };
-        dataSource = 'OTP Response';
+      console.log('🔄 Fetching user profile from API via Redux...');
+      console.log('🔄 Current patientId from Redux:', patientId);
+
+      // Fetch user profile from API via Redux - pass patientId explicitly
+      await dispatch(fetchUserProfile(patientId));
+
+      // Log complete user slice data after API fetch
+      const state = { user: userState };
+      logUserSliceData(state);
+
+      // Only use Redux patient data - no fallbacks
+      if (patientData) {
+        const formName = patientData.name || patientData.patient_name || '';
+        const formPhone = patientData.phone_number || patientData.phone || '';
+        const formEmail = patientData.email || '';
+        const formGender = patientData.gender || '';
+
+        setName(formName);
+        setPhoneNumber(formPhone);
+        setEmail(formEmail);
+        setGender(formGender);
+
+        console.log('✅ Profile data loaded from API and Redux:', {
+          name: formName,
+          phone: formPhone,
+          email: formEmail,
+          gender: formGender
+        });
       } else {
-        // Try login response
-        const loginResponse = await getLoginResponse();
-        console.log('📱 Login response data:', loginResponse);
-        
-        if (loginResponse && loginResponse.data) {
-          const userData = loginResponse.data;
-          console.log('✅ Using login response data:', userData);
-          
-          profileData = {
-            name: userData.name || userData.full_name || '',
-            phone: userData.phone_number || userData.phone || '',
-            email: userData.email || '',
-            gender: userData.gender || ''
-          };
-          dataSource = 'Login Response';
-        } else {
-          // Fallback to user storage
-          console.log('📦 OTP/Login data not found, trying user storage...');
-          const userData = await getUserData();
-          console.log('💾 User storage data:', userData);
-          
-          profileData = {
-            name: userData.name || '',
-            phone: userData.phone || '',
-            email: userData.email || '',
-            gender: userData.gender || ''
-          };
-          dataSource = 'User Storage';
-        }
+        console.log('⚠️ No patient data found in Redux store after API fetch - using empty values');
+        // Set empty values as fallback
+        setName('');
+        setPhoneNumber('');
+        setEmail('');
+        setGender('');
       }
-      
-      console.log(`👤 Profile data from ${dataSource}:`, profileData);
-      
-      setName(profileData.name);
-      setPhoneNumber(profileData.phone);
-      setEmail(profileData.email);
-      setGender(profileData.gender);
-      
-      console.log('✅ User data loaded successfully');
     } catch (error) {
-      console.error('❌ Error loading user data:', error);
-      Alert.alert('Error', 'Failed to load user data');
+      console.error('❌ Error fetching user profile from API via Redux:', error);
+      // Set empty values as fallback
+      setName('');
+      setPhoneNumber('');
+      setEmail('');
+      setGender('');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSaveChanges = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+    // Validate input data
+    const formData = {
+      name: name.trim(),
+      phone: phoneNumber.trim(),
+      email: email.trim(),
+      gender: gender,
+    };
+
+    const validation = validatePatientData(formData);
+    if (!validation.isValid) {
+      Alert.alert('Validation Error', validation.errors.join('\n'));
       return;
     }
-    if (!phoneNumber.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
-      return;
-    }
-    if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+
+    if (!patientId) {
+      Alert.alert('Error', 'Patient ID not found in OTP response. Please login again.');
       return;
     }
 
     try {
-      console.log('💾 Saving user data to async storage...');
+      setSaving(true);
+      console.log('🔄 Updating patient profile via API...');
       
-      // Save updated user data to async storage
-      const updatedUserData = {
-        name: name.trim(),
-        phone: phoneNumber.trim(),
-        email: email.trim(),
-        gender: gender,
+      // Prepare data for API
+      const apiData = {
+        patient_id: patientId,
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        gender: formData.gender,
       };
 
-      console.log('📝 Data to be saved:', updatedUserData);
+      console.log('📝 Data to be sent to API:', apiData);
 
-      const success = await saveUserData(updatedUserData);
+      // Call the API
+      const result = await updatePatientProfile(apiData);
       
-      if (success) {
-        console.log('✅ User data saved successfully to async storage');
-    Alert.alert(
-      'Success',
-      'Profile updated successfully!',
-      [
-        {
-          text: 'OK',
-          onPress: () => setIsEditing(false)
-        }
-      ]
-    );
+      if (result.success) {
+        console.log('✅ Profile updated successfully via API');
+        console.log('📝 API Response data:', result.data);
+        
+        // Use the complete API response data instead of just form data
+        const updatedPatientData = {
+          ...result.data, // Use complete API response data
+          // Ensure we have the correct field mappings
+          id: result.data.id,
+          patient_unique_id: result.data.patient_unique_id,
+          name: result.data.name,
+          phone_number: result.data.phone_number,
+          email: result.data.email,
+          gender: result.data.gender,
+          dob: result.data.dob,
+          age: result.data.age,
+          blood_group: result.data.blood_group,
+          address: result.data.address,
+          profile_image: result.data.profile_image,
+          status: result.data.status,
+          created_at: result.data.created_at,
+          updated_at: result.data.updated_at,
+          // Add timestamp for tracking
+          lastUpdated: new Date().toISOString(),
+        };
+        
+        // Clear old data and update with new data in Redux
+        dispatch(updatePatientData(updatedPatientData));
+        console.log('✅ Redux store cleared and updated with complete API response data:', updatedPatientData);
+        
+        // Force refresh the form data to ensure UI shows updated values
+        setName(formData.name);
+        setPhoneNumber(formData.phone);
+        setEmail(formData.email);
+        setGender(formData.gender);
+        
+        console.log('✅ Form data refreshed with updated values:', {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          gender: formData.gender
+        });
+        
+        Alert.alert(
+          'Success',
+          'Profile updated successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => setIsEditing(false)
+            }
+          ]
+        );
       } else {
-        console.log('❌ Failed to save user data to async storage');
-        Alert.alert('Error', 'Failed to save profile data');
+        console.log('❌ Failed to update profile via API:', result.message);
+        Alert.alert('Error', result.message || 'Failed to update profile');
       }
     } catch (error) {
-      console.error('❌ Error saving user data:', error);
-      Alert.alert('Error', 'Failed to save profile data');
+      console.error('❌ Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = () => {
     setIsEditing(true);
+  };
+
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All Fields',
+      'Are you sure you want to clear all fields?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            setName('');
+            setPhoneNumber('');
+            setEmail('');
+            setGender('');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLogUserData = () => {
+    console.log('🔄 Manual user slice data log requested...');
+    const state = { user: userState };
+    logUserSliceData(state);
+  };
+
+  const handleLogout = () => {
+    const confirmation = getLogoutConfirmation();
+    
+    Alert.alert(
+      confirmation.title,
+      confirmation.message,
+      [
+        {
+          text: confirmation.cancelText,
+          style: 'cancel',
+        },
+        {
+          text: confirmation.confirmText,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🔄 Starting logout process...');
+              
+              // Perform complete logout
+              const result = await performCompleteLogout(dispatch, navigation);
+              
+              if (result.success) {
+                Alert.alert(
+                  'Success',
+                  'You have been logged out successfully.',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => {
+                        // Navigation will be handled by performCompleteLogout
+                        console.log('✅ Logout completed');
+                      }
+                    }
+                  ]
+                );
+              } else {
+                Alert.alert(
+                  'Error',
+                  result.message || 'Logout failed. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('❌ Logout error:', error);
+              Alert.alert(
+                'Error',
+                'An unexpected error occurred during logout.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getProfileImage = () => {
@@ -264,7 +426,17 @@ const ProfileScreen = ({ navigation }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={isEditing}
+                selectTextOnFocus={isEditing}
+                clearButtonMode={isEditing ? "while-editing" : "never"}
               />
+              {isEditing && email.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.clearButton}
+                  onPress={() => setEmail('')}
+                >
+                  <Icon name="times" size={14} color="#999" />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -290,14 +462,47 @@ const ProfileScreen = ({ navigation }) => {
 
       </ScrollView>
 
-      {/* Save Changes Button */}
+      {/* Action Buttons */}
       {isEditing && (
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveChanges}>
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+          <TouchableOpacity 
+            style={styles.clearAllButton} 
+            onPress={handleClearAll}
+          >
+            <Icon name="trash" size={16} color="#dc3545" style={styles.clearAllIcon} />
+            <Text style={styles.clearAllButtonText}>Clear All</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
+            onPress={handleSaveChanges}
+            disabled={saving}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Debug and Logout Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={styles.debugButton} 
+          onPress={handleLogUserData}
+        >
+          <Icon name="bug" size={16} color="#6c757d" style={styles.debugIcon} />
+          <Text style={styles.debugButtonText}>Log User Data</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+        >
+          <Icon name="sign-out-alt" size={16} color="#dc3545" style={styles.logoutIcon} />
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -385,6 +590,10 @@ const styles = StyleSheet.create({
     fontSize: wp('4%'),
     color: '#333',
   },
+  clearButton: {
+    padding: wp('2%'),
+    marginLeft: wp('2%'),
+  },
   inputReadOnly: {
     color: '#666',
   },
@@ -394,11 +603,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  clearAllButton: {
+    backgroundColor: '#fff',
+    borderRadius: wp('2%'),
+    paddingVertical: hp('1.5%'),
+    paddingHorizontal: wp('4%'),
+    alignItems: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#dc3545',
+  },
+  clearAllButtonText: {
+    color: '#dc3545',
+    fontSize: wp('4%'),
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: wp('2%'),
+  },
+  clearAllIcon: {
+    marginRight: wp('1%'),
   },
   saveButton: {
     backgroundColor: '#0D6EFD',
     borderRadius: wp('2%'),
     paddingVertical: hp('2%'),
+    paddingHorizontal: wp('6%'),
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -410,6 +642,53 @@ const styles = StyleSheet.create({
     fontSize: wp('4.5%'),
     fontFamily: PoppinsFonts.SemiBold,
     color: '#fff',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
+  },
+  debugButton: {
+    backgroundColor: '#fff',
+    borderRadius: wp('2%'),
+    paddingVertical: hp('1.5%'),
+    paddingHorizontal: wp('4%'),
+    alignItems: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#6c757d',
+    marginRight: wp('2%'),
+  },
+  debugButtonText: {
+    color: '#6c757d',
+    fontSize: wp('4%'),
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: wp('2%'),
+  },
+  debugIcon: {
+    marginRight: wp('1%'),
+  },
+  logoutButton: {
+    backgroundColor: '#dc3545',
+    borderRadius: wp('2%'),
+    paddingVertical: hp('1.5%'),
+    paddingHorizontal: wp('4%'),
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: wp('4%'),
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: wp('2%'),
+  },
+  logoutIcon: {
+    marginRight: wp('1%'),
   },
   loadingContainer: {
     flex: 1,

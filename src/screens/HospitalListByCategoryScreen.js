@@ -102,6 +102,17 @@ const HospitalListByCategoryScreen = ({ navigation, route }) => {
     const fullStars = Math.floor(numRating);
     const hasHalfStar = numRating % 1 !== 0;
 
+    // Ensure we have valid numbers
+    if (isNaN(numRating) || numRating < 0) {
+      // Return 5 empty stars for invalid ratings
+      for (let i = 0; i < 5; i++) {
+        stars.push(
+          <Icon key={`empty-${i}`} name="star" size={12} color="#E0E0E0" />
+        );
+      }
+      return stars;
+    }
+
     for (let i = 0; i < fullStars; i++) {
       stars.push(
         <Icon key={i} name="star" size={12} color="#FFA500" />
@@ -139,6 +150,9 @@ const HospitalListByCategoryScreen = ({ navigation, route }) => {
   };
 
   const getHospitalType = (hospital) => {
+    if (!hospital || !hospital.type) {
+      return 'Medical Facility';
+    }
     return hospital.type === 'hospital' ? 'Multi Specialty Hospital' : 'Clinic';
   };
 
@@ -231,7 +245,7 @@ const HospitalListByCategoryScreen = ({ navigation, route }) => {
                 <View style={styles.imageOverlay}>
                   <View style={styles.hospitalInfo}>
                     <View style={styles.hospitalDetails}>
-                      <Text style={styles.hospitalName}>{hospital.name}</Text>
+                      <Text style={styles.hospitalName}>{hospital.name || 'Unknown Hospital'}</Text>
                       <Text style={styles.hospitalType}>{getHospitalType(hospital)}</Text>
                       <View style={styles.ratingContainer}>
                         <View style={styles.starsContainer}>

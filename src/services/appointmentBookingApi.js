@@ -31,10 +31,19 @@ export const getAppointmentBookingDetails = async (patientId) => {
     console.log('Headers:', response.headers);
     console.log('Data:', response.data);
     
+    // Check if response data is empty or has no appointments
+    const hasAppointments = response.data && (
+      (Array.isArray(response.data) && response.data.length > 0) ||
+      (response.data.appointment_detail && Array.isArray(response.data.appointment_detail) && response.data.appointment_detail.length > 0) ||
+      (response.data.appointments && Array.isArray(response.data.appointments) && response.data.appointments.length > 0) ||
+      (response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) ||
+      (response.data.appointment && Array.isArray(response.data.appointment) && response.data.appointment.length > 0)
+    );
+
     return {
       success: true,
       data: response.data,
-      message: 'Appointment booking details fetched successfully',
+      message: hasAppointments ? 'Appointment booking details fetched successfully' : 'No appointments found',
     };
   } catch (error) {
     console.error('=== API ERROR ===');
@@ -44,6 +53,18 @@ export const getAppointmentBookingDetails = async (patientId) => {
     console.error('Response data:', error.response?.data);
     console.error('Request URL:', error.config?.url);
     console.error('Request params:', error.config?.params);
+    
+    // Handle 404 as "no appointments found" rather than an error
+    if (error.response?.status === 404) {
+      console.log('404 response - treating as no appointments found');
+      return {
+        success: true, // Treat as success
+        data: null,
+        message: 'No appointment details found',
+        error: null,
+        status: 404,
+      };
+    }
     
     return {
       success: false,
@@ -73,6 +94,28 @@ export const getPatientIdFromStorage = async () => {
     return null;
   } catch (error) {
     console.error('Error getting patient ID from storage:', error);
+    return null;
+  }
+};
+
+/**
+ * Get user ID from AsyncStorage
+ * @returns {Promise<string|null>} - User ID or null if not found
+ */
+export const getUserIdFromStorage = async () => {
+  try {
+    const { getOTPResponse } = await import('../utils/otpStorage');
+    const otpResponse = await getOTPResponse();
+    console.log("otpResponse",otpResponse)
+    if (otpResponse && otpResponse.data && otpResponse.data.uid) {
+      console.log('User ID found in storage:', otpResponse.data.id);
+      return otpResponse.data.id.toString();
+    }
+    
+    console.log('No user ID found in storage');
+    return null;
+  } catch (error) {
+    console.error('Error getting user ID from storage:', error);
     return null;
   }
 };
@@ -153,13 +196,18 @@ export const formatAppointmentData = (appointmentData) => {
 
   // Sort appointments by date (only if we have appointments)
   const sortedAppointments = appointments.length > 0 ? appointments.sort((a, b) => {
-    const dateA = new Date(a.appointment_date || a.date || a.created_at || a.appointment_date_time);
-    const dateB = new Date(b.appointment_date || b.date || b.created_at || b.appointment_date_time);
+    // Handle nested appointment structure from new API response
+    const appointmentA = a.appointment || a;
+    const appointmentB = b.appointment || b;
+    
+    const dateA = new Date(appointmentA.appointment_date || appointmentA.date || appointmentA.created_at || appointmentA.appointment_date_time);
+    const dateB = new Date(appointmentB.appointment_date || appointmentB.date || appointmentB.created_at || appointmentB.appointment_date_time);
     return dateB - dateA; // Most recent first
   }) : [];
 
   // Categorize appointments by status
   sortedAppointments.forEach(appointment => {
+    // Handle nested appointment structure from new API response
     const appointmentData = appointment.appointment || appointment;
     const status = appointmentData.status || appointment.status;
     const statusLower = status?.toLowerCase();
@@ -192,7 +240,6 @@ export const formatAppointmentData = (appointmentData) => {
     totalAppointments: appointments.length,
     upcomingAppointments,
     completedAppointments,
-    uncategorizedAppointments,
   };
   
   console.log('Formatted result:', result);

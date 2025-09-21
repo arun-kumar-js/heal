@@ -37,9 +37,15 @@ const DoctorAppointmentScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [selectedDateObj, setSelectedDateObj] = useState(() => new Date());
   const [userData, setUserData] = useState({
-    mobile: '1234567890',
-    email: 'patient@example.com'
+    mobile: '',
+    email: '',
+    patient_id: null
   });
+
+  // Debug userData changes
+  useEffect(() => {
+    console.log('📱 USER DATA UPDATED:', JSON.stringify(userData, null, 2));
+  }, [userData]);
   const [showReasonError, setShowReasonError] = useState(false);
   
   // Initialize selectedDate with current date when component mounts
@@ -52,27 +58,37 @@ const DoctorAppointmentScreen = ({ navigation, route }) => {
     console.log('📅 DOCTOR APPOINTMENT - Initialized selectedDate with current date:', formattedDate);
   }, []);
 
-  // Load user data on component mount
+  // Load patient_id from async storage (for API calls) but don't auto-fill user data
   useEffect(() => {
-    loadUserData();
+    loadPatientId();
   }, []);
 
-  const loadUserData = async () => {
+  const loadPatientId = async () => {
     try {
+      console.log('🔍 LOADING PATIENT ID FROM ASYNC STORAGE...');
       const otpResponse = await getOTPResponse();
+      console.log('📦 OTP Response:', JSON.stringify(otpResponse, null, 2));
+      
       if (otpResponse && otpResponse.data) {
         const userInfo = otpResponse.data;
-        setUserData({
-          mobile: userInfo.phone_number || '1234567890',
-          email: userInfo.email || 'patient@example.com'
-        });
-        console.log('User data loaded for appointment:', {
-          mobile: userInfo.phone_number || '1234567890',
-          email: userInfo.email || 'patient@example.com'
-        });
+        const patientId = userInfo.id || userInfo.patient_unique_id || null;
+        
+        console.log('👤 User Info:', JSON.stringify(userInfo, null, 2));
+        console.log('🆔 Patient Unique ID (string):', userInfo.patient_unique_id);
+        console.log('🆔 User ID (numeric):', userInfo.id);
+        console.log('✅ Using numeric User ID as patient_id:', patientId);
+        
+        setUserData(prev => ({
+          ...prev,
+          patient_id: patientId
+        }));
+        
+        console.log('✅ Patient ID set in userData:', patientId);
+      } else {
+        console.log('❌ No OTP response data found');
       }
     } catch (error) {
-      console.error('Error loading user data for appointment:', error);
+      console.error('❌ Error loading patient ID for appointment:', error);
     }
   };
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
@@ -225,7 +241,8 @@ console.log('clinic_id', clinic_id);
             endTime: slot.end_time,
             token: slot.token,
             isBooked: slot.is_booked,
-            status: slot.status
+            status: slot.status,
+            amount: slot.amount  // Include the amount field
           }));
         
         console.log('✅ FILTERED AVAILABLE SLOTS (for UI):');
@@ -239,7 +256,8 @@ console.log('clinic_id', clinic_id);
             endTime: slot.endTime,
             token: slot.token,
             isBooked: slot.isBooked,
-            status: slot.status
+            status: slot.status,
+            amount: slot.amount
           });
         });
         
@@ -515,7 +533,8 @@ console.log('clinic_id', clinic_id);
             endTime: slot.endTime,
             token: slot.token,
             isBooked: slot.isBooked,
-            status: slot.status
+            status: slot.status,
+            amount: slot.amount
           });
         });
       } else {
@@ -675,13 +694,6 @@ console.log('clinic_id', clinic_id);
     };
   };
 
-  // Get user data for contact information
-  const getUserContactInfo = () => {
-    return {
-      mobile: userData.mobile,
-      email: userData.email
-    };
-  };
 
   const renderStars = (rating) => {
     return <Icon name="star" size={14} color="#FFA500" />;
@@ -743,7 +755,7 @@ console.log('clinic_id', clinic_id);
 
 
 
-  const handleScheduleAppointment = async () => {
+  const handleScheduleAppointment = () => {
     // Reset error states
     setShowReasonError(false);
     
@@ -760,9 +772,6 @@ console.log('clinic_id', clinic_id);
 
     // Generate a token number
     const tokenNumber = `T-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-
-    // Get user contact information
-    const contactInfo = getUserContactInfo();
     
     // Format the date properly for the API (YYYY-MM-DD format)
     const formatDateForAPI = (dateObj) => {
@@ -772,58 +781,40 @@ console.log('clinic_id', clinic_id);
       const day = String(dateObj.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
-    
-    // Format appointment data for API
-    const appointmentData = formatAppointmentData({
-      doctor_id: doctor?.id,
-      clinic_id: doctor?.clinic_id,
-      full_name: doctor?.name || 'Patient Name',
-      next_token: tokenNumber,
-      time_slot: selectedTime,
-      appointment_date: formatDateForAPI(selectedDateObj),
-      mobile_number: contactInfo.mobile,
-      email: contactInfo.email,
-      reason: reason
-    });
 
     console.log('🎫 BOOKING DATA:');
     console.log('  - Doctor:', doctor?.name);
+    console.log('  - Patient ID:', userData.patient_id);
+    console.log('  - UserData Object:', JSON.stringify(userData, null, 2));
     console.log('  - Selected Date (Display):', selectedDate);
     console.log('  - Selected Date (API Format):', formatDateForAPI(selectedDateObj));
     console.log('  - Selected Time:', selectedTime);
     console.log('  - Reason:', reason);
     console.log('  - Token:', tokenNumber);
-    console.log('  - API Data:', JSON.stringify(appointmentData, null, 2));
 
-    try {
-      // Show loading
-      Alert.alert('Booking Appointment', 'Please wait while we book your appointment...');
-
-      // Call the booking API
-      const result = await storeUserDetail(appointmentData);
-
-      if (result.success) {
-        console.log('✅ APPOINTMENT BOOKED SUCCESSFULLY:', result.data);
-        
-        // Navigate to BookingDetailsScreen with all the required data
-        navigation.navigate('BookingDetails', {
-          doctor: doctor,
-          selectedDate: selectedDate, // Keep display format for UI
-          selectedDateFormatted: formatDateForAPI(selectedDateObj), // Add API format for backend
-          selectedTime: selectedTime,
-          selectedTimeSlot: selectedTimeSlot, // Pass the selected time slot with amount
-          reason: reason,
-          token: tokenNumber,
-          bookingResponse: result.data
-        });
-      } else {
-        console.error('❌ BOOKING FAILED:', result.message);
-        Alert.alert('Booking Failed', result.message || 'Failed to book appointment. Please try again.');
-      }
-    } catch (error) {
-      console.error('❌ BOOKING ERROR:', error);
-      Alert.alert('Error', 'An error occurred while booking your appointment. Please try again.');
+    // Ensure we have a valid patient_id before proceeding
+    if (!userData.patient_id) {
+      Alert.alert('Error', 'Patient ID not found. Please try again.');
+      return;
     }
+
+    // Log the selectedTimeSlot before navigation
+    console.log('🚀 NAVIGATING TO BOOKING DETAILS:');
+    console.log('  - SelectedTimeSlot with amount:', selectedTimeSlot);
+    console.log('  - Amount in slot:', selectedTimeSlot?.amount);
+
+    // Navigate directly to BookingDetailsScreen with all the required data
+    navigation.navigate('BookingDetails', {
+      doctor: doctor,
+      selectedDate: selectedDate, // Keep display format for UI
+      selectedDateFormatted: formatDateForAPI(selectedDateObj), // Add API format for backend
+      selectedTime: selectedTime,
+      selectedTimeSlot: selectedTimeSlot, // Pass the selected time slot with amount
+      reason: reason,
+      token: tokenNumber,
+      userData: userData,
+      patient_id: userData.patient_id // Use the loaded patient_id from async storage
+    });
   };
 
   return (
@@ -1015,6 +1006,7 @@ console.log('clinic_id', clinic_id);
                       token: slot.token,
                       isBooked: slot.isBooked,
                       status: slot.status,
+                      amount: slot.amount,
                       index: actualIndex
                     });
                     
@@ -1042,6 +1034,13 @@ console.log('clinic_id', clinic_id);
                         ]}
                         onPress={() => {
                           if (!isPassed) {
+                            console.log('🎯 TIME SLOT SELECTED:', {
+                              time: slot.time,
+                              endTime: slot.endTime,
+                              token: slot.token,
+                              amount: slot.amount,
+                              fullSlot: slot
+                            });
                             setSelectedTime(slot.time);
                             setSelectedTimeSlot(slot);
                           }
@@ -1078,6 +1077,7 @@ console.log('clinic_id', clinic_id);
             </View>
           )}
         </View>
+
 
         {/* Reason for Visit Section */}
         <View style={styles.sectionCard}>

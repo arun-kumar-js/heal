@@ -77,6 +77,7 @@ export const storeUserDetail = async (appointmentData) => {
 // Helper function to format appointment data
 export const formatAppointmentData = (appointmentDetails) => {
   const {
+    patient_id,
     doctor_id,
     clinic_id,
     full_name,
@@ -85,10 +86,21 @@ export const formatAppointmentData = (appointmentDetails) => {
     appointment_date,
     mobile_number,
     email,
-    reason
+    reason,
+    payment_amount
   } = appointmentDetails;
 
-  return {
+  console.log('🔍 FORMATTING APPOINTMENT DATA:');
+  console.log('  - Input patient_id:', patient_id);
+  console.log('  - Type:', typeof patient_id);
+  console.log('  - Is null:', patient_id === null);
+  console.log('  - Is undefined:', patient_id === undefined);
+  console.log('  - Is empty string:', patient_id === '');
+  console.log('  - Input payment_amount:', payment_amount);
+  console.log('  - Payment amount type:', typeof payment_amount);
+
+  const formattedData = {
+    patient_id: patient_id,
     doctor_id: doctor_id || null,
     clinic_id: clinic_id || null,
     full_name: full_name || '',
@@ -97,6 +109,15 @@ export const formatAppointmentData = (appointmentDetails) => {
     appointment_date: appointment_date || '',
     mobile_number: mobile_number || '',
     email: email || '',
-    reason: reason || ''
+    reason: reason || '',
+    payment_amount: payment_amount || null
   };
+
+  console.log('✅ FORMATTED DATA:');
+  console.log('  - Formatted patient_id:', formattedData.patient_id);
+  console.log('  - Type:', typeof formattedData.patient_id);
+  console.log('  - Formatted payment_amount:', formattedData.payment_amount);
+  console.log('  - Payment amount type:', typeof formattedData.payment_amount);
+
+  return formattedData;
 };

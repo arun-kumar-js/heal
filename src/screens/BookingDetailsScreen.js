@@ -48,12 +48,15 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     selectedTime, 
     selectedTimeSlot,
     reason, 
-    token 
+    token,
+    patient_id,
+    userData,
+    contactInfo
   } = route.params || {};
 
-  const [fullName, setFullName] = useState('');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState(userData?.name || '');
+  const [mobileNumber, setMobileNumber] = useState(contactInfo?.mobile || userData?.mobile || '');
+  const [email, setEmail] = useState(contactInfo?.email || userData?.email || '');
   const [reasonForVisit, setReasonForVisit] = useState(
     reason || "I've been experiencing frequent chest discomfort, occasional shortness of breath, and unusual fatigue even during light activity."
   );
@@ -63,6 +66,21 @@ const BookingDetailsScreen = ({ navigation, route }) => {
   // Initialize Redux state with route params
   useEffect(() => {
     console.log('🔄 BOOKING DETAILS - Initializing Redux state with route params');
+    console.log('📋 ROUTE PARAMS RECEIVED:', {
+      doctor: doctor?.name,
+      selectedDate,
+      selectedTime,
+      reason,
+      token,
+      patient_id,
+      userData: userData ? {
+        name: userData.name,
+        mobile: userData.mobile,
+        email: userData.email,
+        patient_id: userData.id
+      } : null,
+      contactInfo
+    });
     
     if (doctor) {
       dispatch(setDoctor(doctor));
@@ -124,7 +142,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
       return { uri: `https://spiderdesk.asia/healto/${doctor.profile_image}` };
     }
     return { 
-      uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor?.name || 'Dr. Aishwarya')}&size=300&background=ff6b6b&color=fff`
+      uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor?.name )}&size=300&background=ff6b6b&color=fff`
     };
   };
 
@@ -263,7 +281,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
       console.log('appointment_time value:', appointmentTime);
 
       // Get amount from selectedTimeSlot or Redux state or use default
-      const appointmentAmount = selectedTimeSlot?.amount || appointmentDetails.formData.amount || 150;
+      const appointmentAmount = selectedTimeSlot?.amount || appointmentDetails.formData.amount ;
       console.log('💰 BOOKING DETAILS - Using amount for appointment:', appointmentAmount);
       console.log('💰 BOOKING DETAILS - Amount sources:', {
         selectedTimeSlotAmount: selectedTimeSlot?.amount,
@@ -271,8 +289,9 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         finalAmount: appointmentAmount
       });
 
-      // Prepare appointment data
+      // Prepare appointment data - only the required fields
       const appointmentData = {
+        patient_id: patient_id || userData?.patient_id || null,
         doctor_id: doctor?.id || null,
         clinic_id: doctor?.clinic_id || null,
         full_name: fullName.trim(),
@@ -282,10 +301,21 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         mobile_number: mobileNumber.trim(),
         email: email.trim(),
         reason: reasonForVisit.trim(),
-        amount: appointmentAmount // Include amount in appointment data
+        payment_amount: appointmentAmount // Include the amount from time slot
       };
 
       console.log('📤 BOOKING APPOINTMENT:', appointmentData);
+      console.log('💰 PAYMENT AMOUNT DEBUG:', {
+        selectedTimeSlotAmount: selectedTimeSlot?.amount,
+        reduxAmount: appointmentDetails.formData.amount,
+        finalAppointmentAmount: appointmentAmount,
+        paymentAmountInData: appointmentData.payment_amount
+      });
+      console.log('👤 PATIENT ID DEBUG:', {
+        patient_id_from_params: patient_id,
+        userData_patient_id: userData?.patient_id,
+        final_patient_id: patient_id || userData?.patient_id || null
+      });
 
       // Use Redux async thunk to book appointment
       const result = await dispatch(bookAppointment(appointmentData)).unwrap();
@@ -410,15 +440,15 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         <View style={styles.doctorCard}>
           <Image source={getDoctorImage(doctor)} style={styles.doctorImage} />
           <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
+            <Text style={styles.doctorName}>{doctor?.name }</Text>
             <Text style={styles.doctorSpecialty}>
-              {getDoctorSpecialty(doctor)} From {doctor?.clinic_name || 'Kl Clinic'}
+              {getDoctorSpecialty(doctor)} From {doctor?.clinic?.name }
             </Text>
             <View style={styles.ratingContainer}>
               <View style={styles.stars}>
-                {renderStars(doctor?.rating || 4.5)}
+                {renderStars(doctor?.rating )}
               </View>
-              <Text style={styles.ratingText}>{doctor?.rating || 4.5}</Text>
+              <Text style={styles.ratingText}>{doctor?.rating }</Text>
             </View>
           </View>
           <TouchableOpacity style={styles.callButton}>
@@ -437,7 +467,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         
         {/* Full Name Card */}
         <View style={styles.inputCard}>
-        <Text style={styles.inputLabel}>Full Name</Text>
+        <Text style={styles.inputLabel}>Patient Full Name</Text>
           <View style={styles.inputContainer}>
             <View style={styles.inputIcon}>
               <Image

@@ -17,52 +17,66 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
-import { useDispatch, useSelector } from 'react-redux';
-import { setSearchQuery, clearFilters, fetchDoctors } from '../store/slices/doctorsSlice';
-import { 
-  selectFilteredDoctors, 
-  selectDoctorsLoading, 
-  selectDoctorsError, 
-  selectSelectedCategory,
-  selectSearchQuery 
-} from '../store/selectors/doctorsSelectors';
-import BackButton from '../components/BackButton';
-import { getOTPResponse, getFormattedUserProfile } from '../utils/otpStorage';
+import { getDoctorsData } from '../services/doctorsApi';
 import { PoppinsFonts } from '../config/fonts';
 
 const IMAGE_BASE_URL = 'https://spiderdesk.asia/healto/';
 
 const DoctorListWithTimeScreen = ({ navigation, route }) => {
-  const dispatch = useDispatch();
-  const reduxDoctors = useSelector(selectFilteredDoctors);
-  const loading = useSelector(selectDoctorsLoading);
-  const error = useSelector(selectDoctorsError);
-  const selectedCategory = useSelector(selectSelectedCategory);
-  const searchQuery = useSelector(selectSearchQuery);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [imageLoadingStates, setImageLoadingStates] = useState({});
   const [imageErrors, setImageErrors] = useState({});
 
-  // Use passed doctors from hospital details or fallback to Redux
-  const doctors = route.params?.doctors || reduxDoctors;
+  // Get parameters from route
+  const selectedCategory = route.params?.selectedCategory;
+  const clinicId = route.params?.clinicId || route.params?.hospitalId;
+  const hospitalName = route.params?.hospitalName;
   const isFromHospital = route.params?.fromHospital || false;
   
   // Debug logging
   console.log('DoctorListByHospitalScreen Debug Info:');
+  console.log('- selectedCategory:', selectedCategory);
+  console.log('- clinicId:', clinicId);
+  console.log('- hospitalName:', hospitalName);
   console.log('- isFromHospital:', isFromHospital);
   console.log('- route.params:', route.params);
-  console.log('- doctors from params:', route.params?.doctors?.length || 0);
-  console.log('- redux doctors:', reduxDoctors?.length || 0);
-  console.log('- final doctors:', doctors?.length || 0);
 
+  // Fetch doctors from API when component mounts
   useEffect(() => {
-    // Only fetch doctors from Redux if not coming from hospital details
-    if (!isFromHospital) {
-      console.log('DoctorListScreen: Dispatching fetchDoctors...');
-      dispatch(fetchDoctors());
-    } else {
-      console.log('DoctorListScreen: Using doctors from hospital details');
+    if (!clinicId) {
+      console.log('No clinic ID provided, cannot fetch doctors');
+      return;
     }
-  }, [dispatch, isFromHospital]);
+    
+    const fetchDoctors = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log('Fetching doctors for clinic:', clinicId, 'specialization:', selectedCategory);
+        
+        const result = await getDoctorsData(selectedCategory, clinicId, !!selectedCategory);
+        
+        if (result.success) {
+          setDoctors(result.data);
+          console.log('Successfully fetched doctors:', result.data.length);
+        } else {
+          setError(result.error);
+          console.error('Failed to fetch doctors:', result.error);
+        }
+      } catch (err) {
+        console.error('Error fetching doctors:', err);
+        setError('Failed to fetch doctors. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDoctors();
+  }, [clinicId, selectedCategory]);
 
   useEffect(() => {
     // Preload images for better performance when doctors change
@@ -87,44 +101,16 @@ const DoctorListWithTimeScreen = ({ navigation, route }) => {
       }
     });
   }, []);
-console.log(doctors)
   
   // Normalize specialty names to handle variations
   const normalizeSpecialtyName = (name) => {
     if (!name) return '';
     
-    const normalized = name.trim().toLowerCase();
-    
-    // Handle common variations
-    const variations = {
-      'cardiology': 'Cardiology',
-      'cardiac': 'Cardiology',
-      'heart': 'Cardiology',
-      'neurology': 'Neurology',
-      'brain': 'Neurology',
-      'neural': 'Neurology',
-      'orthopedics': 'Orthopedics',
-      'orthopedic': 'Orthopedics',
-      'bone': 'Orthopedics',
-      'pediatrics': 'Pediatrics',
-      'pediatric': 'Pediatrics',
-      'child': 'Pediatrics',
-      'dermatology': 'Dermatology',
-      'skin': 'Dermatology',
-      'gynecology': 'Gynecology',
-      'gynecological': 'Gynecology',
-      'women': 'Gynecology',
-      'ophthalmology': 'Ophthalmology',
-      'eye': 'Ophthalmology',
-      'vision': 'Ophthalmology',
-      'ent': 'ENT',
-      'ear nose throat': 'ENT',
-      'psychiatry': 'Psychiatry',
-      'mental': 'Psychiatry',
-      'psychology': 'Psychiatry'
-    };
-    
-    return variations[normalized] || name.trim();
+    // Simple capitalization - just capitalize first letter of each word
+    return name.trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const getDoctorSpecialty = (doctor) => {
@@ -161,21 +147,20 @@ console.log(doctors)
     return typeMap[doctor.type] || 'General Medicine';
   };
 
-  // Filter doctors by selected category if provided
+  // Filter doctors by search query only (specialization filtering is done by API)
   const filteredDoctors = useMemo(() => {
     if (!doctors || !Array.isArray(doctors)) {
       console.log('No doctors data available:', doctors);
       return [];
     }
     
-    // If no category is selected, return all doctors
-    if (!route.params?.selectedCategory) {
-      console.log('No category selected, returning all doctors:', doctors.length);
+    // If no search query, return all doctors
+    if (!searchQuery.trim()) {
+      console.log('No search query, returning all doctors:', doctors.length);
       return doctors;
     }
     
-    const selectedCategory = route.params.selectedCategory;
-    console.log('Filtering doctors by category:', selectedCategory, 'Total doctors:', doctors.length);
+    console.log('Filtering doctors by search query:', searchQuery, 'Total doctors:', doctors.length);
     
     const filtered = doctors.filter(doctor => {
       if (!doctor || typeof doctor !== 'object') {
@@ -183,19 +168,18 @@ console.log(doctors)
         return false;
       }
       
-      const doctorSpecialty = getDoctorSpecialty(doctor);
-      const normalizedSpecialty = normalizeSpecialtyName(doctorSpecialty);
-      const normalizedCategory = normalizeSpecialtyName(selectedCategory);
+      const doctorName = (doctor.name || '').toLowerCase();
+      const searchTerm = searchQuery.trim().toLowerCase();
       
-      const isMatch = normalizedSpecialty === normalizedCategory;
-      console.log(`Doctor: ${doctor.name || 'Unknown'}, Specialty: ${normalizedSpecialty}, Category: ${normalizedCategory}, Match: ${isMatch}`);
+      const isMatch = doctorName.includes(searchTerm);
+      console.log(`Doctor: ${doctor.name || 'Unknown'}, Search: ${searchTerm}, Match: ${isMatch}`);
       
       return isMatch;
     });
     
-    console.log(`Filtered ${filtered.length} doctors out of ${doctors.length} for category: ${selectedCategory}`);
+    console.log(`Filtered ${filtered.length} doctors out of ${doctors.length} for search: ${searchQuery}`);
     return filtered;
-  }, [doctors, route.params?.selectedCategory]);
+  }, [doctors, searchQuery]);
 
   const renderStars = (rating) => {
     return (
@@ -260,7 +244,7 @@ console.log(doctors)
     const handleDoctorPress = () => {
       navigation.navigate('DoctorAppointment', { 
         doctor,
-        hospitalName: route.params?.hospitalName || 'Hospital'
+        hospitalName: hospitalName || doctor?.clinic?.name || 'Hospital'
       });
     };
     
@@ -303,7 +287,7 @@ console.log(doctors)
             <View style={styles.doctorInfo}>
               <Text style={styles.doctorName}>{doctor.name || 'Dr. Unknown'}</Text>
               <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
-              <Text style={styles.doctorClinic}>{route.params?.hospitalName || 'Hospital'}</Text>
+              <Text style={styles.doctorClinic}>{hospitalName || doctor?.clinic?.name || 'Hospital'}</Text>
             </View>
           </View>
         </ImageBackground>
@@ -325,29 +309,27 @@ console.log(doctors)
           <Icon name="arrow-left" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>{route.params?.hospitalName }</Text>
+          <Text style={styles.headerTitle}>{hospitalName || 'Hospital'}</Text>
           <Text style={styles.headerSubtitle}>
-            {route.params?.selectedCategory 
-              ? `${route.params.selectedCategory} Specialists` 
+            {selectedCategory 
+              ? `${selectedCategory} Specialists` 
               : 'Select the Doctor'
             }
           </Text>
         </View>
       </View>
 
-      {/* Search Bar - Only show when not from hospital */}
-      {!isFromHospital && (
-        <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
-          <TextInput
-            placeholder="Search by Doctor N..."
-            placeholderTextColor="#888"
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={(text) => dispatch(setSearchQuery(text))}
-          />
-        </View>
-      )}
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Icon name="search" size={20} color="#888" style={styles.searchIcon} />
+        <TextInput
+          placeholder="Search by Doctor N..."
+          placeholderTextColor="#888"
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
 
       {/* Doctors Grid */}
       <ScrollView 
@@ -358,19 +340,24 @@ console.log(doctors)
           isFromHospital && styles.doctorsGridContainerNoSearch
         ]}
       >
-        {!isFromHospital && loading ? (
+        {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#0D6EFD" />
             <Text style={styles.loadingText}>Loading doctors...</Text>
           </View>
-        ) : !isFromHospital && error ? (
+        ) : error ? (
           <View style={styles.errorContainer}>
             <Icon name="exclamation-triangle" size={60} color="#d9534f" />
             <Text style={styles.errorTitle}>Failed to load doctors</Text>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity 
               style={styles.retryButton}
-              onPress={() => dispatch(fetchDoctors())}
+              onPress={() => {
+                // Retry by refetching doctors
+                setError(null);
+                setLoading(true);
+                // The useEffect will trigger again
+              }}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
@@ -386,11 +373,11 @@ console.log(doctors)
           <View style={styles.noResultsContainer}>
             <Icon name="user-md" size={60} color="#0D6EFD" />
             <Text style={styles.noResultsTitle}>
-              {route.params?.selectedCategory ? `No ${route.params.selectedCategory} specialists found` : 'No doctors found'}
+              {selectedCategory ? `No ${selectedCategory} specialists found` : 'No doctors found'}
             </Text>
             <Text style={styles.noResultsSubtitle}>
-              {route.params?.selectedCategory 
-                ? `We couldn't find any ${route.params.selectedCategory.toLowerCase()} specialists at this hospital.`
+              {selectedCategory 
+                ? `We couldn't find any ${selectedCategory.toLowerCase()} specialists at this hospital.`
                 : 'Try adjusting your search criteria or browse all doctors.'
               }
             </Text>
@@ -400,10 +387,10 @@ console.log(doctors)
               Debug: {doctors.length} total doctors, {filteredDoctors.length} filtered
             </Text>
             <Text style={styles.debugText}>
-              Category: {route.params?.selectedCategory || 'None'}, From Hospital: {isFromHospital ? 'Yes' : 'No'}
+              Category: {selectedCategory || 'None'}, Clinic ID: {clinicId || 'N/A'}
             </Text>
             <Text style={styles.debugText}>
-              Hospital: {route.params?.hospitalName || 'N/A'}, Hospital ID: {route.params?.hospitalId || 'N/A'}
+              Hospital: {hospitalName || 'N/A'}, Search: {searchQuery || 'None'}
             </Text>
             
             {/* Show all doctors as fallback for debugging */}

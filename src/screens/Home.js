@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ImageBackground,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -21,66 +22,80 @@ import axios from 'axios';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSelectedCategory } from '../store/slices/doctorsSlice';
 import { selectDoctors } from '../store/selectors/doctorsSelectors';
+import { selectFormattedUserData, loadUserOTPResponse } from '../store/slices/userSlice';
 import { getOTPResponse } from '../utils/otpStorage';
+import { performCompleteLogout, getLogoutConfirmation } from '../utils/logoutUtils';
 import { PoppinsFonts, FontStyles } from '../config/fonts';
 
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
   const doctorsFromRedux = useSelector(selectDoctors);
+  const userData = useSelector(selectFormattedUserData);
   const [activeFilter, setActiveFilter] = useState('All');
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [userData, setUserData] = useState({
-    name: 'User',
-    profileImage: 'https://randomuser.me/api/portraits/men/32.jpg',
-    location: 'Location not set',
-    email: '',
-    phone: '',
-    age: '',
-    gender: '',
-    bloodGroup: '',
-    patientId: '',
-  });
 
-  // Fetch doctors data and user data on component mount
+  // Load user data and doctors data on component mount
   useEffect(() => {
     loadDoctors();
     loadUserData();
   }, []);
 
-  // Load user data from OTP response in AsyncStorage
   const loadUserData = async () => {
     try {
-      const otpResponse = await getOTPResponse();
-      if (otpResponse && otpResponse.data) {
-        const userInfo = otpResponse.data;
-        
-        // Format profile image URL with base URL
-        const baseUrl = 'https://spiderdesk.asia/healto/';
-        const profileImageUrl = userInfo.profile_image 
-          ? `${baseUrl}${userInfo.profile_image}`
-          : 'https://randomuser.me/api/portraits/men/32.jpg';
-        
-        const formattedUserData = {
-          name: userInfo.name || 'User',
-          profileImage: profileImageUrl,
-          location: userInfo.address || 'Location not set',
-          email: userInfo.email || '',
-          phone: userInfo.phone_number || '',
-          age: userInfo.age || '',
-          gender: userInfo.gender || '',
-          bloodGroup: userInfo.blood_group || '',
-          patientId: userInfo.patient_unique_id || '',
-        };
-        
-        setUserData(formattedUserData);
-        console.log('User data loaded from OTP response:', formattedUserData);
-      } else {
-        console.log('No OTP response found, using default data');
-      }
+      console.log('🔄 Loading user data from Redux...');
+      dispatch(loadUserOTPResponse());
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ Error loading user data:', error);
     }
+  };
+
+  const handleLogout = () => {
+    const confirmation = getLogoutConfirmation();
+    
+    Alert.alert(
+      confirmation.title,
+      confirmation.message,
+      [
+        {
+          text: confirmation.cancelText,
+          style: 'cancel',
+        },
+        {
+          text: confirmation.confirmText,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🔄 Starting logout process...');
+              
+              // Perform complete logout
+              const result = await performCompleteLogout(dispatch, navigation);
+              
+              if (result.success) {
+                Alert.alert(
+                  'Success',
+                  'You have been logged out successfully.',
+                  [{ text: 'OK' }]
+                );
+              } else {
+                Alert.alert(
+                  'Error',
+                  result.message || 'Logout failed. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('❌ Logout error:', error);
+              Alert.alert(
+                'Error',
+                'An unexpected error occurred during logout.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const loadDoctors = async () => {
@@ -236,6 +251,7 @@ console.log("doctors", doctors);
     specialty: getDoctorSpecialty(doctor),
     rating: (4.0 + (index % 3) * 0.3).toFixed(1),
     image: getDoctorImage(doctor).uri,
+    clinic: doctor.clinic, // Include clinic information
   }));
 
   // Add View All option
@@ -458,6 +474,7 @@ console.log("doctors", doctors);
                       }
                     >
                       {item.name}
+                      
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -541,6 +558,7 @@ console.log("doctors", doctors);
                               <Text style={styles.doctorSpecialty}>
                                 {doctor.specialty}
                               </Text>
+                              <Text style={styles.doctorClinic}>{doctor?.clinic?.name }</Text>
                             </LinearGradient>
                           </>
                         )}
@@ -792,6 +810,20 @@ const styles = StyleSheet.create({
   locationIcon: {
     marginLeft: 4,
   },
+  patientIdText: {
+    fontSize: wp('3.5%'),
+    color: '#FFFFFF',
+    opacity: 0.8,
+    fontFamily: PoppinsFonts.Regular,
+    marginTop: hp('0.5%'),
+  },
+  logoutButtonHeader: {
+    padding: wp('3%'),
+    borderRadius: wp('6%'),
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   doctorsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -844,7 +876,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-    marginTop: hp('0.8%'),
+    //marginTop: hp('0.8%'),
   },
   doctorSpecialty: {
     color: '#FFFFFF',
@@ -854,7 +886,16 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
    // marginTop: hp('1.%'),
-    paddingBottom:hp('1%'),
+   // paddingBottom:hp('1%'),
+  },
+  doctorClinic: {
+    color: '#FFFFFF',
+    fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
+    opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   viewAllDoctorOverlay: {
     flex: 1,

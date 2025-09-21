@@ -84,18 +84,55 @@ const Appointment = ({ navigation }) => {
         console.log('Upcoming appointments:', formatted.upcomingAppointments);
         console.log('Completed appointments:', formatted.completedAppointments);
         
-        // If no appointments found, show empty state
+        // If no appointments found, show empty state (not an error)
         if (formatted.totalAppointments === 0) {
-          console.log('No appointments found in response');
+          console.log('No appointments found in response - showing empty state');
+          setError(null); // Clear any previous errors
         }
       } else {
         console.error('API call failed:', response);
-        setError(response.message || 'Failed to load appointment details');
+        // Check if it's a "no appointments" response (404 or specific messages)
+        if (response.status === 404 || 
+            (response.message && (
+              response.message.includes('No appointment details found') ||
+              response.message.includes('No appointments') || 
+              response.message.includes('not found')
+            ))) {
+          console.log('No appointments found - showing empty state instead of error');
+          setError(null);
+          setFormattedData({
+            appointments: [],
+            totalAppointments: 0,
+            upcomingAppointments: [],
+            completedAppointments: [],
+          });
+        } else {
+          // It's a real error
+          setError(response.message || 'Failed to load appointment details');
+        }
       }
     } catch (err) {
       console.error('Error loading appointment details:', err);
       console.error('Error stack:', err.stack);
-      setError(err.message || 'Failed to load appointment details');
+      
+      // Check if it's a "no appointments" type error (404 or specific messages)
+      if (err.status === 404 || 
+          (err.message && (
+            err.message.includes('No appointment details found') ||
+            err.message.includes('No appointments') || 
+            err.message.includes('not found')
+          ))) {
+        console.log('No appointments found - showing empty state instead of error');
+        setError(null);
+        setFormattedData({
+          appointments: [],
+          totalAppointments: 0,
+          upcomingAppointments: [],
+          completedAppointments: [],
+        });
+      } else {
+        setError(err.message || 'Failed to load appointment details');
+      }
     } finally {
       setLoading(false);
     }
@@ -146,14 +183,18 @@ const Appointment = ({ navigation }) => {
     console.log('=== RENDERING APPOINTMENT CARD ===');
     console.log('Full appointment object:', appointment);
     
-    // Get the nested appointment data
+    // Get the nested appointment data from the new API response structure
     const appointmentData = appointment.appointment || appointment;
     const doctorData = appointmentData.doctor || appointment.doctor;
     const patientData = appointmentData.patient || appointment.patient;
+    const clinicData = appointmentData.clinic || appointment.clinic;
+    const subPatientData = appointmentData.sub_patient || appointment.sub_patient;
     
     console.log('Appointment data:', appointmentData);
     console.log('Doctor data:', doctorData);
     console.log('Patient data:', patientData);
+    console.log('Clinic data:', clinicData);
+    console.log('Sub patient data:', subPatientData);
     
     const statusColor = getAppointmentStatusColor(appointmentData.status || appointment.status);
     const statusText = getAppointmentStatusText(appointmentData.status || appointment.status);
@@ -185,9 +226,17 @@ const Appointment = ({ navigation }) => {
        appointmentData.specialization ||
        'General Medicine');
     
+    // Get clinic name
+    const clinicName = clinicData?.name || 'Clinic';
+    
+    // Get patient name (main patient or sub-patient)
+    const patientName = subPatientData?.name || patientData?.name || 'Patient';
+    
     console.log('Doctor name:', doctorName);
     console.log('Doctor specialty:', doctorSpecialty);
     console.log('Doctor specialization_id:', doctorData?.specialization_id);
+    console.log('Clinic name:', clinicName);
+    console.log('Patient name:', patientName);
     
     // Format doctor image URL with base URL
     const baseUrl = 'https://spiderdesk.asia/healto/';
@@ -195,12 +244,35 @@ const Appointment = ({ navigation }) => {
       `${baseUrl}${doctorData.profile_image}` :
       `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0D6EFD&color=fff&size=100`;
     
-    // Get payment status from appointment_detail
+    // Get payment status and amounts from appointment_detail
     const paymentStatus = appointment.payment_status || appointmentData.payment_status;
     const paymentAmount = appointment.payment_amount || appointmentData.payment_amount;
+    const amountPaid = appointment.amount_paid || appointmentData.amount_paid;
+    const balanceAmount = appointment.balance_amount || appointmentData.balance_amount;
+    const token = appointment.token || appointmentData.token;
     
     console.log('Payment status:', paymentStatus);
     console.log('Payment amount:', paymentAmount);
+    console.log('Amount paid:', amountPaid);
+    console.log('Balance amount:', balanceAmount);
+    console.log('Token:', token);
+    
+    // Get payment status color and text
+    const getPaymentStatusInfo = (status) => {
+      switch (status?.toLowerCase()) {
+        case 'paid':
+          return { color: '#28a745', text: 'Paid' };
+        case 'partial':
+          return { color: '#ffc107', text: 'Partial' };
+        case 'unpaid':
+        case 'pending':
+          return { color: '#dc3545', text: 'Unpaid' };
+        default:
+          return { color: '#6c757d', text: status || 'Unknown' };
+      }
+    };
+    
+    const paymentInfo = getPaymentStatusInfo(paymentStatus);
     
     return (
     <TouchableOpacity 
@@ -220,26 +292,21 @@ const Appointment = ({ navigation }) => {
             <Text style={styles.doctorSpecialty}>{doctorSpecialty}</Text>
             <Text style={styles.appointmentDate}>{appointmentDate}</Text>
             <Text style={styles.appointmentTime}>{appointmentTime}</Text>
+            
             <View style={styles.statusContainer}>
               <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
                 <Text style={styles.statusText}>{statusText}</Text>
               </View>
               {paymentStatus && (
                 <View style={[styles.paymentBadge, { 
-                  backgroundColor: paymentStatus === 'paid' ? '#28a745' : '#ffc107' 
+                  backgroundColor: paymentInfo.color
                 }]}>
                   <Text style={styles.paymentText}>
-                    {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-          </Text>
+                    {paymentInfo.text}
+                  </Text>
                 </View>
               )}
             </View>
-            {appointment.description && (
-              <Text style={styles.descriptionText}>{appointment.description}</Text>
-            )}
-            {paymentAmount && paymentAmount !== '0.00' && (
-              <Text style={styles.amountText}>Amount: ₹{paymentAmount}</Text>
-            )}
         </View>
       </View>
       <TouchableOpacity style={styles.navigateButton}>
@@ -701,6 +768,39 @@ const styles = StyleSheet.create({
     fontSize: wp('3%'),
     color: '#0D6EFD',
     marginTop: hp('0.3%'),
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  clinicName: {
+    fontSize: wp('3.2%'),
+    color: '#666666',
+    marginBottom: hp('0.3%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  patientName: {
+    fontSize: wp('3%'),
+    color: '#666666',
+    marginBottom: hp('0.5%'),
+    fontFamily: 'Poppins-Regular',
+  },
+  tokenText: {
+    fontSize: wp('3%'),
+    color: '#0D6EFD',
+    marginBottom: hp('0.5%'),
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  paymentDetails: {
+    marginTop: hp('0.5%'),
+  },
+  paidText: {
+    fontSize: wp('2.8%'),
+    color: '#28a745',
+    marginTop: hp('0.2%'),
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  balanceText: {
+    fontSize: wp('2.8%'),
+    color: '#dc3545',
+    marginTop: hp('0.2%'),
     fontFamily: PoppinsFonts.SemiBold,
   },
   debugText: {

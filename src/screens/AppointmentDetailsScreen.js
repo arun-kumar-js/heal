@@ -45,10 +45,12 @@ const getSpecializationName = (specializationId) => {
 const AppointmentDetailsScreen = ({ navigation, route }) => {
   const { appointment, doctor } = route.params || {};
   
-  // Extract data from appointment object
+  // Extract data from appointment object (handle new API structure)
   const appointmentData = appointment?.appointment || appointment;
   const doctorData = appointmentData?.doctor || appointment?.doctor || doctor;
   const patientData = appointmentData?.patient || appointment?.patient;
+  const clinicData = appointmentData?.clinic || appointment?.clinic;
+  const subPatientData = appointmentData?.sub_patient || appointment?.sub_patient;
   
   // Get appointment details
   const appointmentDate = formatAppointmentDate(
@@ -67,26 +69,59 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
   const statusColor = getAppointmentStatusColor(status);
   const statusText = getAppointmentStatusText(status);
   
+  // Get payment details from appointment_detail level
   const paymentStatus = appointment?.payment_status || appointmentData?.payment_status;
   const paymentAmount = appointment?.payment_amount || appointmentData?.payment_amount;
+  const amountPaid = appointment?.amount_paid || appointmentData?.amount_paid;
+  const balanceAmount = appointment?.balance_amount || appointmentData?.balance_amount;
+  const refundAmount = appointment?.refund_amount || appointmentData?.refund_amount;
+  
   const description = appointment?.description || appointmentData?.description;
-  const tokenNumber = appointment?.token_number || appointmentData?.token_number || appointment?.id || appointmentData?.id;
+  const tokenNumber = appointment?.token || appointmentData?.token || appointment?.id || appointmentData?.id;
   
   // Get doctor info
   const doctorName = doctorData?.name || 'Dr. Unknown';
   const doctorSpecialty = doctorData?.specialization_id ? 
     getSpecializationName(doctorData.specialization_id) : 
     (doctorData?.specialization || 'General Medicine');
+  const doctorPhone = doctorData?.phone || '';
+  const doctorEmail = doctorData?.email || '';
+  const doctorExperience = doctorData?.experience_years || '';
+  const doctorQualification = doctorData?.qualification || '';
+  const doctorInfo = doctorData?.info || '';
   
   const baseUrl = 'https://spiderdesk.asia/healto/';
   const doctorImage = doctorData?.profile_image ? 
     `${baseUrl}${doctorData.profile_image}` :
     `https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=0D6EFD&color=fff&size=100`;
   
-  // Get patient info
-  const patientName = patientData?.name || 'Patient';
-  const patientPhone = patientData?.phone_number || patientData?.phone || '';
-  const patientEmail = patientData?.email || '';
+  // Get patient info (prefer sub-patient if available)
+  const patientName = subPatientData?.name || patientData?.name || 'Patient';
+  const patientPhone = subPatientData?.phone_number || patientData?.phone_number || patientData?.phone || '';
+  const patientEmail = subPatientData?.email || patientData?.email || '';
+  const patientGender = subPatientData?.gender || patientData?.gender || '';
+  
+  // Get clinic info
+  const clinicName = clinicData?.name || 'Clinic';
+  const clinicPhone = clinicData?.phone || '';
+  const clinicEmail = clinicData?.email || '';
+  
+  // Get payment status color and text
+  const getPaymentStatusInfo = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'paid':
+        return { color: '#28a745', text: 'Paid' };
+      case 'partial':
+        return { color: '#ffc107', text: 'Partial' };
+      case 'unpaid':
+      case 'pending':
+        return { color: '#dc3545', text: 'Unpaid' };
+      default:
+        return { color: '#6c757d', text: status || 'Unknown' };
+    }
+  };
+  
+  const paymentInfo = getPaymentStatusInfo(paymentStatus);
 
   const renderStars = (rating) => {
     const stars = [];
@@ -157,73 +192,16 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Appointment Status Card */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Appointment Status:</Text>
-            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-              <Text style={styles.statusText}>{statusText}</Text>
-            </View>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Payment Status:</Text>
-            <View style={[styles.paymentBadge, { 
-              backgroundColor: paymentStatus === 'paid' ? '#28a745' : '#ffc107' 
-            }]}>
-              <Text style={{color:"black",fontSize:wp('3%'),fontFamily:PoppinsFonts.SemiBold}}>
-                {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Date & Time:</Text>
-            <Text style={styles.dateTimeText}>{appointmentDate} at {appointmentTime}</Text>
-          </View>
-          {description && (
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Description:</Text>
-              <Text style={styles.descriptionText}>{description}</Text>
-            </View>
-          )}
-          {paymentAmount && paymentAmount !== '0.00' && (
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Amount:</Text>
-              <Text style={styles.amountText}>₹{paymentAmount}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Personal Information Section */}
+        {/* Token Number Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          
+          <Text style={styles.sectionTitle}>Token Number</Text>
           <View style={styles.inputContainer}>
-            <Icon name="user" size={16} color="#0D6EFD" style={styles.inputIcon} />
+            <Icon name="bullseye" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value={patientName}
+              value={tokenNumber ? tokenNumber.toString() : 'Not assigned'}
               editable={false}
-              placeholder="Full Name"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Icon name="phone" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={patientPhone || 'Not provided'}
-              editable={false}
-              placeholder="Mobile Number"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Icon name="envelope" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={patientEmail || 'Not provided'}
-              editable={false}
-              placeholder="Email"
+              placeholder="Token Number"
             />
           </View>
         </View>
@@ -266,27 +244,161 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Payment Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment</Text>
-          <View style={styles.paymentContainer}>
-            <Text style={styles.paymentText}>
-              {paymentAmount ? `INR ${paymentAmount}` : 'INR 0'} - {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-            </Text>
+        {/* Appointment Status Card */}
+        <View style={styles.statusCard}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Appointment Status:</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+              <Text style={styles.statusText}>{statusText}</Text>
+            </View>
           </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Payment Status:</Text>
+            <View style={[styles.paymentBadge, { 
+              backgroundColor: paymentInfo.color
+            }]}>
+              <Text style={{color:"black",fontSize:wp('3%'),fontFamily:PoppinsFonts.SemiBold}}>
+                {paymentInfo.text}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Date & Time:</Text>
+            <Text style={styles.dateTimeText}>{appointmentDate} at {appointmentTime}</Text>
+          </View>
+          {description && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Description:</Text>
+              <Text style={styles.descriptionText}>{description}</Text>
+            </View>
+          )}
+          {paymentAmount && paymentAmount !== '0.00' && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Amount:</Text>
+              <Text style={styles.amountText}>₹{paymentAmount}</Text>
+            </View>
+          )}
         </View>
 
-        {/* Token Number Section */}
+        {/* Personal Information Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Token Number</Text>
+          <Text style={styles.sectionTitle}>Patient Information</Text>
+          
           <View style={styles.inputContainer}>
-            <Icon name="bullseye" size={16} color="#0D6EFD" style={styles.inputIcon} />
+            <Icon name="user" size={16} color="#0D6EFD" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              value={tokenNumber ? tokenNumber.toString() : 'Not assigned'}
+              value={patientName}
               editable={false}
-              placeholder="Token Number"
+              placeholder="Full Name"
             />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Icon name="phone" size={16} color="#0D6EFD" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={patientPhone || 'Not provided'}
+              editable={false}
+              placeholder="Mobile Number"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Icon name="envelope" size={16} color="#0D6EFD" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={patientEmail || 'Not provided'}
+              editable={false}
+              placeholder="Email"
+            />
+          </View>
+
+          {patientGender && (
+            <View style={styles.inputContainer}>
+              <Icon name="venus-mars" size={16} color="#0D6EFD" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={patientGender}
+                editable={false}
+                placeholder="Gender"
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Clinic Information Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Clinic Information</Text>
+          
+          <View style={styles.inputContainer}>
+            <Icon name="hospital" size={16} color="#0D6EFD" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={clinicName}
+              editable={false}
+              placeholder="Clinic Name"
+            />
+          </View>
+
+          {clinicPhone && (
+            <View style={styles.inputContainer}>
+              <Icon name="phone" size={16} color="#0D6EFD" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={clinicPhone}
+                editable={false}
+                placeholder="Clinic Phone"
+              />
+            </View>
+          )}
+
+          {clinicEmail && (
+            <View style={styles.inputContainer}>
+              <Icon name="envelope" size={16} color="#0D6EFD" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={clinicEmail}
+                editable={false}
+                placeholder="Clinic Email"
+              />
+            </View>
+          )}
+
+        </View>
+
+        {/* Payment Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Payment Details</Text>
+          <View style={styles.paymentContainer}>
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Total Amount:</Text>
+              <Text style={styles.paymentValue}>₹{paymentAmount || '0.00'}</Text>
+            </View>
+            {amountPaid && amountPaid !== '0.00' && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Amount Paid:</Text>
+                <Text style={[styles.paymentValue, { color: '#28a745' }]}>₹{amountPaid}</Text>
+              </View>
+            )}
+            {balanceAmount && balanceAmount !== '0.00' && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Balance Amount:</Text>
+                <Text style={[styles.paymentValue, { color: '#dc3545' }]}>₹{balanceAmount}</Text>
+              </View>
+            )}
+            {refundAmount && refundAmount !== '0.00' && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Refund Amount:</Text>
+                <Text style={[styles.paymentValue, { color: '#17a2b8' }]}>₹{refundAmount}</Text>
+              </View>
+            )}
+            <View style={styles.paymentRow}>
+              <Text style={styles.paymentLabel}>Payment Status:</Text>
+              <View style={[styles.paymentStatusBadge, { backgroundColor: paymentInfo.color }]}>
+                <Text style={styles.paymentStatusText}>{paymentInfo.text}</Text>
+              </View>
+            </View>
           </View>
         </View>
         </ScrollView>
@@ -330,8 +442,8 @@ const styles = StyleSheet.create({
   doctorCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: wp('3%'),
-    padding: wp('4%'),
-    marginBottom: hp('2%'),
+    padding: wp('3%'),
+    marginBottom: hp('1%'),
     flexDirection: 'row',
     alignItems: 'center',
     elevation: 2,
@@ -386,12 +498,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   section: {
-    marginBottom: hp('2%'),
+    marginBottom: hp('1%'),
   },
   sectionTitle: {
     fontSize: wp('4.5%'),
     color: '#333333',
-    marginBottom: hp('1.5%'),
+    marginBottom: hp('0.8%'),
     fontFamily: PoppinsFonts.Bold,
   },
   inputContainer: {
@@ -399,9 +511,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: wp('2%'),
-    paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1.5%'),
-    marginBottom: hp('1.5%'),
+    paddingHorizontal: wp('3%'),
+   // paddingVertical: hp('1%'),
+    marginBottom: hp('0.8%'),
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: {
@@ -423,7 +535,7 @@ const styles = StyleSheet.create({
   textAreaContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: wp('2%'),
-    padding: wp('4%'),
+    padding: wp('3%'),
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: {
@@ -440,20 +552,49 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
   },
   paymentContainer: {
-    paddingHorizontal: wp('4%'),
-    paddingVertical: hp('1.5%'),
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('1%'),
   },
   paymentText: {
     fontSize: wp('3%'),
     color: '#000000',
     fontFamily: 'Poppins-Regular',
   },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp('0.5%'),
+  },
+  paymentLabel: {
+    fontSize: wp('3.5%'),
+    color: '#666666',
+    fontFamily: 'Poppins-Regular',
+    flex: 1,
+  },
+  paymentValue: {
+    fontSize: wp('3.5%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.SemiBold,
+    flex: 1,
+    textAlign: 'right',
+  },
+  paymentStatusBadge: {
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('0.5%'),
+    borderRadius: wp('1.5%'),
+  },
+  paymentStatusText: {
+    fontSize: wp('3%'),
+    color: '#FFFFFF',
+    fontFamily: PoppinsFonts.SemiBold,
+  },
   // New styles for status card
   statusCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: wp('3%'),
-    padding: wp('4%'),
-    marginBottom: hp('2%'),
+    padding: wp('3%'),
+    marginBottom: hp('1%'),
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
@@ -467,7 +608,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: hp('1%'),
+    marginBottom: hp('0.5%'),
   },
   statusLabel: {
     fontSize: wp('4%'),

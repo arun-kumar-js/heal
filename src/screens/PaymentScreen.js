@@ -18,6 +18,8 @@ import {
 import { PoppinsFonts } from '../config/fonts';
 import { useSelector, useDispatch } from 'react-redux';
 import { setManualAmount } from '../store/slices/appointmentDetailsSlice';
+import { updatePaymentStatus, validatePaymentData } from '../services/paymentUpdateApi';
+import Toast from 'react-native-toast-message';
 
 const PaymentScreen = ({ navigation, route }) => {
   // Get data from Redux slice
@@ -90,11 +92,12 @@ const PaymentScreen = ({ navigation, route }) => {
 
   // Set default amount if none is found
   useEffect(() => {
+    const dynamicAmount = amount || selectedTimeSlot?.amount ;
     if (!amount || amount === '0' || amount === 0) {
-      console.log('⚠️ PAYMENT SCREEN - No amount found, setting default amount of 150');
-      dispatch(setManualAmount(150));
+      console.log('⚠️ PAYMENT SCREEN - No amount found, using dynamic amount:', dynamicAmount);
+      dispatch(setManualAmount(parseFloat(dynamicAmount)));
     }
-  }, [amount, dispatch]);
+  }, [amount, selectedTimeSlot, dispatch]);
 
   // Log amount debugging information
   useEffect(() => {
@@ -102,9 +105,13 @@ const PaymentScreen = ({ navigation, route }) => {
     console.log('  - Route amount:', routeAmount);
     console.log('  - Redux amount:', appointmentDetails.formData.amount);
     console.log('  - SelectedTimeSlot:', selectedTimeSlot);
-    console.log('  - Final amount used:', amount);
+    console.log('  - SelectedTimeSlot amount field:', selectedTimeSlot?.amount);
+    console.log('  - SelectedTimeSlot amount type:', typeof selectedTimeSlot?.amount);
+    console.log('  - Dynamic amount (amount || selectedTimeSlot?.amount):', amount || selectedTimeSlot?.amount);
+    console.log('  - Final amount used:', amount || selectedTimeSlot?.amount);
     console.log('  - Amount type:', typeof amount);
     console.log('  - Amount value:', amount);
+    console.log('  - Parsed amount (parseFloat):', parseFloat(amount || selectedTimeSlot?.amount));
   }, [amount, routeAmount, appointmentDetails.formData.amount, selectedTimeSlot]);
 
   const getDoctorImage = (doctor) => {
@@ -159,14 +166,16 @@ const PaymentScreen = ({ navigation, route }) => {
     return stars;
   };
 
-  const handlePayNow = () => {
-    const fullAmount = amount || 150; // Use amount from Redux or fallback to 150
+  const handlePayNow = async () => {
+    const dynamicAmount = amount || selectedTimeSlot?.amount;
+    const fullAmount = parseFloat(dynamicAmount); // Use dynamic amount from time slot
     const halfAmount = Math.round(fullAmount / 2);
     const finalAmount = selectedPayment === 'Full Payment' ? fullAmount : halfAmount;
     
     console.log('💰 PAYMENT CALCULATION:');
-    console.log('  - Original amount:', amount);
-    console.log('  - Full amount (with fallback):', fullAmount);
+    console.log('  - Dynamic amount:', dynamicAmount);
+    console.log('  - SelectedTimeSlot amount:', selectedTimeSlot?.amount);
+    console.log('  - Full amount:', fullAmount);
     console.log('  - Half amount (calculated):', halfAmount);
     console.log('  - Selected payment type:', selectedPayment);
     
@@ -182,37 +191,95 @@ const PaymentScreen = ({ navigation, route }) => {
         {
           text: 'Proceed',
           style: 'default',
-          onPress: () => {
-            const paymentData = {
-              doctor,
-              selectedDate,
-              selectedTime,
-              selectedTimeSlot,
-              reason,
-              token,
-              personalInfo,
-              appointmentData,
-              paymentAmount: `₹ ${finalAmount}`,
-              paymentMode: selectedPaymentMode,
-              actualAmount: finalAmount
-            };
-            
-            console.log('💳 PAYMENT SCREEN - Processing payment:', paymentData);
-            console.log('💰 PAYMENT SCREEN - Amount from Redux:', amount);
-            console.log('💳 PAYMENT SCREEN - Selected payment type:', selectedPayment);
-            console.log('💳 PAYMENT SCREEN - Final payment amount:', paymentData.paymentAmount);
-            console.log('💳 PAYMENT SCREEN - Actual amount value:', paymentData.actualAmount);
-            
-            // Navigate to payment success screen and reset navigation stack
-            navigation.reset({
-              index: 0,
-              routes: [
-                {
-                  name: 'PaymentSuccess',
-                  params: paymentData
-                }
-              ]
-            });
+          onPress: async () => {
+            try {
+              // Get appointment_id from appointmentData
+              const appointmentId = appointmentData?.appointment_id;
+              
+              if (!appointmentId) {
+                Alert.alert('Error', 'Appointment ID not found. Please try booking again.');
+                return;
+              }
+
+              // Determine payment status based on payment type
+              const paymentStatus = selectedPayment === 'Full Payment' ? 'paid' : 'partial';
+              
+              console.log('💰 PAYMENT STATUS LOGIC:');
+              console.log('  - Selected payment type:', selectedPayment);
+              console.log('  - Payment status:', paymentStatus);
+              
+              // Prepare payment update data
+              const paymentUpdateData = {
+                appointment_details: appointmentData,
+                payment_status: paymentStatus,
+                payment_mode: selectedPaymentMode.toLowerCase()
+              };
+
+              // Validate payment data
+              const validation = validatePaymentData(paymentUpdateData);
+              if (!validation.isValid) {
+                Alert.alert('Validation Error', validation.errors.join('\n'));
+                return;
+              }
+
+              console.log('🔄 Calling payment-update API...', paymentUpdateData);
+
+              // Call payment update API
+              const result = await updatePaymentStatus(paymentUpdateData);
+              
+              if (result.success) {
+                console.log('✅ Payment updated successfully via API');
+                
+                // Show success toast for 2 seconds
+                Toast.show({
+                  type: 'success',
+                  text1: 'Payment Successful',
+                  text2: 'Your payment has been processed successfully!',
+                  visibilityTime: 2000,
+                });
+
+                // Wait for toast to show, then navigate
+                setTimeout(() => {
+                  // Prepare payment data for success screen
+                  const paymentData = {
+                    doctor,
+                    selectedDate,
+                    selectedTime,
+                    selectedTimeSlot,
+                    reason,
+                    token,
+                    personalInfo,
+                    appointmentData,
+                    paymentAmount: `₹ ${finalAmount}`,
+                    paymentMode: selectedPaymentMode,
+                    actualAmount: finalAmount
+                  };
+                  
+                  console.log('💳 PAYMENT SCREEN - Processing payment:', paymentData);
+                  console.log('💰 PAYMENT SCREEN - Amount from Redux:', amount);
+                  console.log('💳 PAYMENT SCREEN - Selected payment type:', selectedPayment);
+                  console.log('💳 PAYMENT SCREEN - Final payment amount:', paymentData.paymentAmount);
+                  console.log('💳 PAYMENT SCREEN - Actual amount value:', paymentData.actualAmount);
+                  
+                  // Navigate to payment success screen and reset navigation stack
+                  navigation.reset({
+                    index: 0,
+                    routes: [
+                      {
+                        name: 'PaymentSuccess',
+                        params: paymentData
+                      }
+                    ]
+                  });
+                }, 2000); // Wait 2 seconds for toast
+              } else {
+                console.log('❌ Failed to update payment via API:', result.message);
+                Alert.alert('Payment Failed', result.message || 'Failed to process payment. Please try again.');
+              }
+            } catch (error) {
+              console.error('❌ Error processing payment:', error);
+              Alert.alert('Payment Error', 'An unexpected error occurred. Please try again.');
+            }
           },
         },
       ]
@@ -331,7 +398,7 @@ const PaymentScreen = ({ navigation, route }) => {
           
           <PaymentOption
             title="Full Payment"
-            amount={`₹ ${amount || 150}`}
+            amount={`₹ ${amount || selectedTimeSlot?.amount}`}
             isSelected={selectedPayment === 'Full Payment'}
             onPress={() => setSelectedPayment('Full Payment')}
             color="#4CAF50"
@@ -339,7 +406,7 @@ const PaymentScreen = ({ navigation, route }) => {
           
           <PaymentOption
             title="Partial Payment"
-            amount={`₹ ${Math.round((amount || 150) / 2)}`}
+            amount={`₹ ${Math.round((parseFloat(amount || selectedTimeSlot?.amount)) / 2)}`}
             isSelected={selectedPayment === 'Partial Payment'}
             onPress={() => setSelectedPayment('Partial Payment')}
             color="#FF9800"
@@ -348,7 +415,7 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={styles.totalAmountContainer}>
             <Text style={styles.totalAmountLabel}>Total Amount</Text>
             <Text style={styles.totalAmountValue}>
-              {selectedPayment === 'Full Payment' ? `₹ ${amount || 150}` : `₹ ${Math.round((amount || 150) / 2)}`}
+              {selectedPayment === 'Full Payment' ? `₹ ${amount || selectedTimeSlot?.amount}` : `₹ ${Math.round((parseFloat(amount || selectedTimeSlot?.amount)) / 2)}`}
             </Text>
           </View>
         </View>
@@ -389,6 +456,9 @@ const PaymentScreen = ({ navigation, route }) => {
           <Text style={styles.payNowButtonText}>Pay Now</Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Toast Component */}
+      <Toast />
     </SafeAreaView>
   );
 };

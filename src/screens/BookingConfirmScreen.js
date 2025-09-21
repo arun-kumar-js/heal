@@ -205,9 +205,9 @@ const BookingConfirmScreen = ({ navigation, route }) => {
             resizeMode="cover"
           />
           <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
+            <Text style={styles.doctorName}>{doctor?.name }</Text>
             <Text style={styles.doctorSpecialty}>
-              {getDoctorSpecialty(doctor)} From {doctor?.clinic_name || 'KL Clinic'}
+              {getDoctorSpecialty(doctor)} From {doctor?.clinic?.name}
             </Text>
             <View style={styles.ratingContainer}>
               <View style={styles.stars}>

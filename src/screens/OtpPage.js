@@ -20,9 +20,11 @@ import {
 } from 'react-native-responsive-screen';
 import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
 import { OTP_URL, basicAuth } from '../config/config.js';
 import Toast from 'react-native-toast-message';
 import { saveOTPResponse, getOTPResponse, clearOTPData } from '../utils/otpStorage';
+import { saveUserOTPResponse } from '../store/slices/userSlice';
 import { PoppinsFonts } from '../config/fonts';
 const OTP_LENGTH = 4;
 
@@ -30,6 +32,7 @@ const OTPScreen = () => {
   const [otp, setOtp] = useState(['', '', '', '']);
   const inputs = useRef([]);
   const navigation = useNavigation();
+  const dispatch = useDispatch();
 
   // Function to retrieve OTP response from AsyncStorage
   const getStoredOTPResponse = async () => {
@@ -98,6 +101,10 @@ const OTPScreen = () => {
         const saveSuccess = await saveOTPResponse(data);
         if (saveSuccess) {
           console.log('OTP response saved successfully with timestamp');
+          
+          // Also save to Redux store
+          dispatch(saveUserOTPResponse(data));
+          console.log('OTP response saved to Redux store');
         } else {
           console.error('Failed to save OTP response');
         }

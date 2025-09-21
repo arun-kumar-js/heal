@@ -1,4 +1,3 @@
-import axios from 'axios';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
@@ -18,6 +17,7 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
+import { getDoctorsData } from '../services/doctorsApi';
 import { PoppinsFonts } from '../config/fonts';
 
 const IMAGE_BASE_URL = 'https://spiderdesk.asia/healto/';
@@ -29,52 +29,44 @@ const DoctorBySpc = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [imageLoadingStates, setImageLoadingStates] = useState({});
   const [imageErrors, setImageErrors] = useState({});
+
+  // Get parameters from route
+  const selectedCategory = route.params?.selectedCategory;
+  const clinicId = route.params?.clinicId || route.params?.hospitalId;
+  const hospitalName = route.params?.hospitalName;
+  const isFromHospital = route.params?.fromHospital || false;
   
-  // Get selectedCategory and clinicId from route params
-  const selectedCategory = route.params?.selectedCategory || route.params?.categoryFilter || null;
-  const clinicId = route.params?.clinicId || route.params?.hospital?.id || null;
-  
-  // Debug: Log the received parameters
-  console.log('DoctorBySpc received parameters:', {
-    selectedCategory,
-    clinicId,
-    allParams: route.params
-  });
-  
+  // Debug logging
+  console.log('DoctorListByHospitalScreen Debug Info:');
+  console.log('- selectedCategory:', selectedCategory);
+  console.log('- clinicId:', clinicId);
+  console.log('- hospitalName:', hospitalName);
+  console.log('- isFromHospital:', isFromHospital);
+  console.log('- route.params:', route.params);
 
   // Fetch doctors from API when component mounts
   useEffect(() => {
-    if (!selectedCategory || !clinicId) {
+    if (!clinicId) {
+      console.log('No clinic ID provided, cannot fetch doctors');
       return;
     }
     
     const fetchDoctors = async () => {
       setLoading(true);
       setError(null);
+      
       try {
-        const apiParams = {
-          clinic_id: clinicId,
-          specialization: selectedCategory, // Pass selectedCategory to API
-        };
+        console.log('Fetching doctors for clinic:', clinicId, 'specialization:', selectedCategory);
         
-        console.log('Sending API request with parameters:', apiParams);
+        const result = await getDoctorsData(selectedCategory, clinicId, !!selectedCategory);
         
-        const response = await axios.get(
-          'https://spiderdesk.asia/healto/api/doctors/by/clinic',
-          {
-            params: apiParams,
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: 'Basic ' + btoa('admin:vamilenterprise2025!@#'),
-            },
-          }
-        );
-        
-        console.log('API Response with both parameters:', response.data);
-        console.log('Extracted doctors array:', response.data.doctors);
-        console.log('Number of doctors received:', response.data.doctors?.length || 0);
-        
-        setDoctors(response.data.doctors || []);
+        if (result.success) {
+          setDoctors(result.data);
+          console.log('Successfully fetched doctors:', result.data.length);
+        } else {
+          setError(result.error);
+          console.error('Failed to fetch doctors:', result.error);
+        }
       } catch (err) {
         console.error('Error fetching doctors:', err);
         setError('Failed to fetch doctors. Please try again.');
@@ -82,8 +74,9 @@ const DoctorBySpc = ({ navigation, route }) => {
         setLoading(false);
       }
     };
+    
     fetchDoctors();
-  }, [selectedCategory, clinicId]);
+  }, [clinicId, selectedCategory]);
 
   useEffect(() => {
     // Preload images for better performance when doctors change
@@ -112,32 +105,11 @@ const DoctorBySpc = ({ navigation, route }) => {
   // Normalize specialty names to handle variations
   const normalizeSpecialtyName = (name) => {
     if (!name) return '';
-    const normalized = name.trim().toLowerCase();
-    // Add more normalization logic as needed, e.g., mapping synonyms
-    // Example: "cardiologist" and "cardiology" -> "Cardiology"
-    if (
-      normalized === 'cardiologist' ||
-      normalized === 'cardiology'
-    ) {
-      return 'Cardiology';
-    }
-    if (
-      normalized === 'general physician' ||
-      normalized === 'general medicine' ||
-      normalized === 'physician'
-    ) {
-      return 'General Medicine';
-    }
-    if (
-      normalized === 'multi specialty' ||
-      normalized === 'multispeciality'
-    ) {
-      return 'Multi Specialty';
-    }
-    // Capitalize the first letter of each word for display
-    return name
+    
+    // Simple capitalization - just capitalize first letter of each word
+    return name.trim()
       .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
   };
 
@@ -147,7 +119,19 @@ const DoctorBySpc = ({ navigation, route }) => {
       return normalizeSpecialtyName(doctor.specialization.name);
     }
     
-    
+    // Map specialization_id to actual specialty names as fallback
+    const specialtyMap = {
+      1: 'Cardiology',
+      2: 'Orthopedics', 
+      3: 'Pediatrics',
+      4: 'Dermatology',
+      5: 'Neurology',
+      6: 'General Medicine',
+      7: 'Gynecology',
+      8: 'Ophthalmology',
+      9: 'ENT',
+      10: 'Psychiatry'
+    };
     
     // Use specialization_id if available, otherwise fallback to type
     if (doctor.specialization_id) {
@@ -163,38 +147,39 @@ const DoctorBySpc = ({ navigation, route }) => {
     return typeMap[doctor.type] || 'General Medicine';
   };
 
-  // Filter doctors based on search query and selected category
+  // Filter doctors by search query only (specialization filtering is done by API)
   const filteredDoctors = useMemo(() => {
     if (!doctors || !Array.isArray(doctors)) {
+      console.log('No doctors data available:', doctors);
       return [];
     }
     
-    console.log('Filtering doctors:', {
-      totalDoctors: doctors.length,
-      searchQuery,
-      selectedCategory,
-      doctors: doctors.map(d => ({ name: d.name, specialty: getDoctorSpecialty(d) }))
-    });
+    // If no search query, return all doctors
+    if (!searchQuery.trim()) {
+      console.log('No search query, returning all doctors:', doctors.length);
+      return doctors;
+    }
     
-    return doctors.filter(doctor => {
+    console.log('Filtering doctors by search query:', searchQuery, 'Total doctors:', doctors.length);
+    
+    const filtered = doctors.filter(doctor => {
       if (!doctor || typeof doctor !== 'object') {
+        console.warn('Invalid doctor object in filter:', doctor);
         return false;
       }
       
-      // Filter by search query (name match)
-      const matchesSearch = searchQuery
-        ? (doctor.name || '').toLowerCase().includes(searchQuery.trim().toLowerCase())
-        : true;
+      const doctorName = (doctor.name || '').toLowerCase();
+      const searchTerm = searchQuery.trim().toLowerCase();
       
-      // Filter by selected category if present (keep as fallback even though API should filter)
-      const doctorSpecialty = getDoctorSpecialty(doctor);
-      const matchesCategory = selectedCategory
-        ? doctorSpecialty.toLowerCase() === selectedCategory.toLowerCase()
-        : true;
+      const isMatch = doctorName.includes(searchTerm);
+      console.log(`Doctor: ${doctor.name || 'Unknown'}, Search: ${searchTerm}, Match: ${isMatch}`);
       
-      return matchesSearch && matchesCategory;
+      return isMatch;
     });
-  }, [doctors, searchQuery, selectedCategory]);
+    
+    console.log(`Filtered ${filtered.length} doctors out of ${doctors.length} for search: ${searchQuery}`);
+    return filtered;
+  }, [doctors, searchQuery]);
 
   const renderStars = (rating) => {
     return (
@@ -259,7 +244,7 @@ const DoctorBySpc = ({ navigation, route }) => {
     const handleDoctorPress = () => {
       navigation.navigate('DoctorAppointment', { 
         doctor,
-        hospitalName: doctor?.clinic_name || 'Hospital'
+        hospitalName: hospitalName || doctor?.clinic?.name || 'Hospital'
       });
     };
     
@@ -302,7 +287,7 @@ const DoctorBySpc = ({ navigation, route }) => {
             <View style={styles.doctorInfo}>
               <Text style={styles.doctorName}>{doctor.name || 'Dr. Unknown'}</Text>
               <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
-              <Text style={styles.doctorClinic}>{doctor?.clinic_name || 'Hospital'}</Text>
+              <Text style={styles.doctorClinic}>{hospitalName || doctor?.clinic?.name || 'Hospital'}</Text>
             </View>
           </View>
         </ImageBackground>
@@ -324,8 +309,13 @@ const DoctorBySpc = ({ navigation, route }) => {
           <Icon name="arrow-left" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Lets Find Your Problem?</Text>
-          <Text style={styles.headerSubtitle}>Select the Doctor</Text>
+          <Text style={styles.headerTitle}>{hospitalName || 'Hospital'}</Text>
+          <Text style={styles.headerSubtitle}>
+            {selectedCategory 
+              ? `${selectedCategory} Specialists` 
+              : 'Select the Doctor'
+            }
+          </Text>
         </View>
       </View>
 
@@ -337,7 +327,7 @@ const DoctorBySpc = ({ navigation, route }) => {
           placeholderTextColor="#888"
           style={styles.searchInput}
           value={searchQuery}
-          onChangeText={(text) => setSearchQuery(text)}
+          onChangeText={setSearchQuery}
         />
       </View>
 
@@ -345,7 +335,10 @@ const DoctorBySpc = ({ navigation, route }) => {
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.doctorsGridContainer}
+        contentContainerStyle={[
+          styles.doctorsGridContainer,
+          isFromHospital && styles.doctorsGridContainerNoSearch
+        ]}
       >
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -357,11 +350,10 @@ const DoctorBySpc = ({ navigation, route }) => {
             <Icon name="exclamation-triangle" size={60} color="#d9534f" />
             <Text style={styles.errorTitle}>Failed to load doctors</Text>
             <Text style={styles.errorText}>{error}</Text>
-            {/* Retry just triggers a refetch by changing state, so we can use a dummy state update */}
             <TouchableOpacity 
               style={styles.retryButton}
               onPress={() => {
-                // Simple retry by refetching
+                // Retry by refetching doctors
                 setError(null);
                 setLoading(true);
                 // The useEffect will trigger again
@@ -385,10 +377,36 @@ const DoctorBySpc = ({ navigation, route }) => {
             </Text>
             <Text style={styles.noResultsSubtitle}>
               {selectedCategory 
-                ? `We couldn't find any ${selectedCategory.toLowerCase()} specialists matching your search.`
+                ? `We couldn't find any ${selectedCategory.toLowerCase()} specialists at this hospital.`
                 : 'Try adjusting your search criteria or browse all doctors.'
               }
             </Text>
+            
+            {/* Debug information */}
+            <Text style={styles.debugText}>
+              Debug: {doctors.length} total doctors, {filteredDoctors.length} filtered
+            </Text>
+            <Text style={styles.debugText}>
+              Category: {selectedCategory || 'None'}, Clinic ID: {clinicId || 'N/A'}
+            </Text>
+            <Text style={styles.debugText}>
+              Hospital: {hospitalName || 'N/A'}, Search: {searchQuery || 'None'}
+            </Text>
+            
+            {/* Show all doctors as fallback for debugging */}
+            {doctors.length > 0 && (
+              <View style={styles.debugContainer}>
+                <Text style={styles.debugTitle}>All Available Doctors (Debug):</Text>
+                {doctors.slice(0, 3).map((doctor, index) => (
+                  <Text key={index} style={styles.debugDoctorText}>
+                    {doctor.name} - {getDoctorSpecialty(doctor)}
+                  </Text>
+                ))}
+                {doctors.length > 3 && (
+                  <Text style={styles.debugDoctorText}>... and {doctors.length - 3} more</Text>
+                )}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -464,6 +482,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp('5%'),
     paddingBottom: hp('5%'),
   },
+  doctorsGridContainerNoSearch: {
+    paddingTop: hp('2%'),
+  },
   doctorsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -491,8 +512,8 @@ const styles = StyleSheet.create({
   },
   ratingContainer: {
     position: 'absolute',
-    top: 15,
-    right: 15,
+    top: hp('.1%'),
+    right: wp('.2%'),
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingVertical: 6,
@@ -517,16 +538,18 @@ const styles = StyleSheet.create({
     marginLeft: wp('1%'),
   },
   doctorInfo: {
-    marginBottom: hp('1%'),
+    marginBottom: hp('-1.8%'),
+   // marginTop: hp('2%'),
   },
   doctorName: {
     color: '#FFFFFF',
     fontSize: wp('4.5%'),
     fontFamily: PoppinsFonts.Bold,
-    marginBottom: hp('0.3%'),
+    //marginBottom: hp('0.3%'),
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+    //paddingTop: hp('30%'),
   },
   doctorSpecialty: {
     color: '#FFFFFF',
@@ -534,7 +557,7 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-    marginBottom: hp('0.3%'),
+   // marginBottom: hp('0.3%'),
   },
   doctorClinic: {
     color: '#FFFFFF',
@@ -587,6 +610,29 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: wp('5%'),
+  },
+  debugText: {
+    fontSize: wp('3%'),
+    color: '#999',
+    textAlign: 'center',
+    marginTop: hp('1%'),
+  },
+  debugContainer: {
+    marginTop: hp('3%'),
+    padding: wp('4%'),
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+  },
+  debugTitle: {
+    fontSize: wp('4%'),
+    fontFamily: PoppinsFonts.Bold,
+    color: '#333',
+    marginBottom: hp('1%'),
+  },
+  debugDoctorText: {
+    fontSize: wp('3.5%'),
+    color: '#666',
+    marginBottom: hp('0.5%'),
   },
   loadingContainer: {
     flex: 1,

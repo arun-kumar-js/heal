@@ -225,7 +225,7 @@ console.log(doctors)
     const handleDoctorPress = () => {
       navigation.navigate('DoctorAppointment', { 
         doctor,
-        hospitalName: doctor?.clinic_name || 'Hospital'
+        hospitalName: doctor?.clinic?.name 
       });
     };
     
@@ -268,7 +268,7 @@ console.log(doctors)
             <View style={styles.doctorInfo}>
               <Text style={styles.doctorName}>{doctor.name || 'Dr. Unknown'}</Text>
               <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
-              <Text style={styles.doctorClinic}>{doctor?.clinic_name || 'Hospital'}</Text>
+              <Text style={styles.doctorClinic}>{doctor?.clinic?.name }</Text>
             </View>
           </View>
         </ImageBackground>
