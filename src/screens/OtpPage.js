@@ -185,6 +185,8 @@ const OTPScreen = () => {
                 style={styles.otpInput}
                 autoFocus={i === 0}
                 textAlign="center"
+                textAlignVertical="center"
+                includeFontPadding={false}
               />
             ))}
           </View>
@@ -275,6 +277,8 @@ const styles = StyleSheet.create({
     fontFamily: PoppinsFonts.SemiBold,
     color: '#000',
     textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
     shadowColor: '#000',
     shadowOpacity: 0.03,
     shadowOffset: { width: 0, height: 2 },
