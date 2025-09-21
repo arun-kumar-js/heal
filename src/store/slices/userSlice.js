@@ -85,9 +85,14 @@ export const fetchUserProfile = createAsyncThunk(
       
       console.log('🔍 Full API response:', response.data);
       
-      if (response.data.success) {
-        console.log('✅ User profile fetched successfully:', response.data.data);
-        return response.data.data;
+      // Check for success using both 'success' and 'status' fields
+      const isSuccess = response.data.success === true || response.data.status === true;
+      
+      if (isSuccess) {
+        // Check if data is in response.data.data or directly in response.data
+        const patientData = response.data.data || response.data;
+        console.log('✅ User profile fetched successfully:', patientData);
+        return patientData;
       } else {
         // If success is false but we have data, try to use the response directly
         if (response.data && (response.data.id || response.data.patient_unique_id)) {
