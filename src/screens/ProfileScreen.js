@@ -40,17 +40,26 @@ const ProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Load user data from Redux only
+  // Load user data from Redux only on initial mount
   useEffect(() => {
     loadUserData();
   }, []);
 
-  // Refresh data when screen comes into focus
+  // Only refresh data when screen comes into focus if we don't have complete data
   useFocusEffect(
     React.useCallback(() => {
-      console.log('🔄 Profile screen focused - refreshing data...');
-      loadUserData();
-    }, [])
+      const hasCompleteData = userState.patientData && 
+        userState.patientData.name && 
+        userState.patientData.email && 
+        userState.patientData.gender;
+      
+      if (!hasCompleteData) {
+        console.log('🔄 Profile screen focused - refreshing incomplete data...');
+        loadUserData();
+      } else {
+        console.log('✅ Profile screen focused - data already complete, skipping refresh');
+      }
+    }, [userState.patientData])
   );
 
   // Sync form fields when Redux patient data changes
@@ -58,17 +67,16 @@ const ProfileScreen = ({ navigation }) => {
     if (patientData) {
       console.log('🔄 Syncing form fields with Redux patient data:', patientData);
       
-      
       const newName = patientData.name || patientData.patient_name || '';
       const newPhone = patientData.phone_number || patientData.phone || '';
       const newEmail = patientData.email || '';
       const newGender = patientData.gender || '';
       
-      // Always sync when Redux data changes
-      setName(newName);
-      setPhoneNumber(newPhone);
-      setEmail(newEmail);
-      setGender(newGender);
+      // Only update if values have actually changed to prevent flicker
+      if (name !== newName) setName(newName);
+      if (phoneNumber !== newPhone) setPhoneNumber(newPhone);
+      if (email !== newEmail) setEmail(newEmail);
+      if (gender !== newGender) setGender(newGender);
       
       console.log('✅ Form fields synced with Redux data:', {
         name: newName,
@@ -77,7 +85,7 @@ const ProfileScreen = ({ navigation }) => {
         gender: newGender
       });
     }
-  }, [patientData, userState]);
+  }, [patientData]);
 
   const loadUserData = async () => {
     try {
@@ -255,6 +263,14 @@ const ProfileScreen = ({ navigation }) => {
     setIsEditing(true);
   };
 
+  const handleBackPress = () => {
+    // Reset editing state before going back to prevent flicker
+    if (isEditing) {
+      setIsEditing(false);
+    }
+    navigation.goBack();
+  };
+
   const handleClearAll = () => {
     Alert.alert(
       'Clear All Fields',
@@ -304,7 +320,7 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
         >
           <Icon name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
