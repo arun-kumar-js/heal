@@ -21,8 +21,7 @@ import {
 import { PoppinsFonts } from '../config/fonts';
 import { updatePatientProfile, validatePatientData } from '../services/patientUpdateApi';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectPatientId, selectPatientData, selectFormattedUserData, loadUserOTPResponse, logoutUser, updatePatientData, fetchUserProfile, logUserSliceData, selectUser } from '../store/slices/userSlice';
-import { performCompleteLogout, getLogoutConfirmation } from '../utils/logoutUtils';
+import { selectPatientId, selectPatientData, selectFormattedUserData, loadUserOTPResponse, updatePatientData, fetchUserProfile, selectUser } from '../store/slices/userSlice';
 
 const ProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -283,67 +282,6 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const handleLogUserData = () => {
-    console.log('🔄 Manual user slice data log requested...');
-    const state = { user: userState };
-    logUserSliceData(state);
-  };
-
-  const handleLogout = () => {
-    const confirmation = getLogoutConfirmation();
-    
-    Alert.alert(
-      confirmation.title,
-      confirmation.message,
-      [
-        {
-          text: confirmation.cancelText,
-          style: 'cancel',
-        },
-        {
-          text: confirmation.confirmText,
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🔄 Starting logout process...');
-              
-              // Perform complete logout
-              const result = await performCompleteLogout(dispatch, navigation);
-              
-              if (result.success) {
-                Alert.alert(
-                  'Success',
-                  'You have been logged out successfully.',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => {
-                        // Navigation will be handled by performCompleteLogout
-                        console.log('✅ Logout completed');
-                      }
-                    }
-                  ]
-                );
-              } else {
-                Alert.alert(
-                  'Error',
-                  result.message || 'Logout failed. Please try again.',
-                  [{ text: 'OK' }]
-                );
-              }
-            } catch (error) {
-              console.error('❌ Logout error:', error);
-              Alert.alert(
-                'Error',
-                'An unexpected error occurred during logout.',
-                [{ text: 'OK' }]
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const getProfileImage = () => {
     return { 
@@ -506,24 +444,6 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* Debug and Logout Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.debugButton} 
-          onPress={handleLogUserData}
-        >
-          <Icon name="bug" size={16} color="#6c757d" style={styles.debugIcon} />
-          <Text style={styles.debugButtonText}>Log User Data</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.logoutButton} 
-          onPress={handleLogout}
-        >
-          <Icon name="sign-out-alt" size={16} color="#dc3545" style={styles.logoutIcon} />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 };
@@ -667,49 +587,6 @@ const styles = StyleSheet.create({
   saveButtonDisabled: {
     backgroundColor: '#ccc',
     opacity: 0.6,
-  },
-  debugButton: {
-    backgroundColor: '#fff',
-    borderRadius: wp('2%'),
-    paddingVertical: hp('1.5%'),
-    paddingHorizontal: wp('4%'),
-    alignItems: 'center',
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#6c757d',
-    marginRight: wp('2%'),
-  },
-  debugButtonText: {
-    color: '#6c757d',
-    fontSize: wp('4%'),
-    fontFamily: 'Poppins-SemiBold',
-    marginLeft: wp('2%'),
-  },
-  debugIcon: {
-    marginRight: wp('1%'),
-  },
-  logoutButton: {
-    backgroundColor: '#dc3545',
-    borderRadius: wp('2%'),
-    paddingVertical: hp('1.5%'),
-    paddingHorizontal: wp('4%'),
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: wp('4%'),
-    fontFamily: 'Poppins-SemiBold',
-    marginLeft: wp('2%'),
-  },
-  logoutIcon: {
-    marginRight: wp('1%'),
   },
   loadingContainer: {
     flex: 1,
