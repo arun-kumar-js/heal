@@ -39,13 +39,18 @@ const ProfileScreen = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasTriedFetching, setHasTriedFetching] = useState(false);
 
   // Load user data from Redux only on initial mount
   useEffect(() => {
+    // Reset the fetching flag when patientId changes (new login)
+    if (patientId) {
+      setHasTriedFetching(false);
+    }
     loadUserData();
-  }, []);
+  }, [patientId]);
 
-  // Only refresh data when screen comes into focus if we don't have complete data
+  // Only refresh data when screen comes into focus if we don't have complete data and haven't tried fetching yet
   useFocusEffect(
     React.useCallback(() => {
       const hasCompleteData = userState.patientData && 
@@ -53,13 +58,21 @@ const ProfileScreen = ({ navigation }) => {
         userState.patientData.email && 
         userState.patientData.gender;
       
-      if (!hasCompleteData) {
-        console.log('🔄 Profile screen focused - refreshing incomplete data...');
+      // For new users, check if we have at least basic data (phone number)
+      const hasBasicData = userState.patientData && 
+        (userState.patientData.phone_number || userState.patientData.phone);
+      
+      if (!hasCompleteData && !hasTriedFetching && hasBasicData) {
+        console.log('🔄 Profile screen focused - fetching profile for new user...');
         loadUserData();
-      } else {
+      } else if (hasCompleteData) {
         console.log('✅ Profile screen focused - data already complete, skipping refresh');
+      } else if (!hasBasicData) {
+        console.log('⚠️ Profile screen focused - no basic data available, skipping fetch');
+      } else {
+        console.log('✅ Profile screen focused - already tried fetching, skipping');
       }
-    }, [userState.patientData])
+    }, [userState.patientData, hasTriedFetching])
   );
 
   // Sync form fields when Redux patient data changes
@@ -90,6 +103,7 @@ const ProfileScreen = ({ navigation }) => {
   const loadUserData = async () => {
     try {
       setLoading(true);
+      setHasTriedFetching(true);
       console.log('🔄 Fetching user profile from API via Redux...');
       console.log('🔄 Current patientId from Redux:', patientId);
       console.log('🔄 Current userState:', userState);
@@ -138,7 +152,7 @@ const ProfileScreen = ({ navigation }) => {
         });
       } else {
         console.log('⚠️ No patient data found in Redux store after API fetch - using empty values');
-        // Set empty values as fallback
+        // Set empty values as fallback for new users
         setName('');
         setPhoneNumber('');
         setEmail('');
