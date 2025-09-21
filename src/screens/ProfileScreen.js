@@ -271,28 +271,6 @@ const ProfileScreen = ({ navigation }) => {
     navigation.goBack();
   };
 
-  const handleClearAll = () => {
-    Alert.alert(
-      'Clear All Fields',
-      'Are you sure you want to clear all fields?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => {
-            setName('');
-            setPhoneNumber('');
-            setEmail('');
-            setGender('');
-          },
-        },
-      ]
-    );
-  };
 
 
   const getProfileImage = () => {
@@ -443,14 +421,6 @@ const ProfileScreen = ({ navigation }) => {
       {isEditing && (
         <View style={styles.buttonContainer}>
           <TouchableOpacity 
-            style={styles.clearAllButton} 
-            onPress={handleClearAll}
-          >
-            <Icon name="trash" size={16} color="#dc3545" style={styles.clearAllIcon} />
-            <Text style={styles.clearAllButtonText}>Clear All</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
             style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
             onPress={handleSaveChanges}
             disabled={saving}
@@ -494,7 +464,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: wp('5%'),
+    paddingHorizontal: wp('4%'),
+    paddingBottom: hp('2%'),
   },
   profilePictureContainer: {
     alignItems: 'center',
@@ -516,9 +487,9 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: '#fff',
-    borderRadius: wp('4%'),
-    padding: wp('5%'),
-    marginBottom: hp('2%'),
+    borderRadius: wp('3%'),
+    padding: wp('4%'),
+    marginBottom: hp('1.5%'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -526,7 +497,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   fieldContainer: {
-    marginBottom: hp('3%'),
+    marginBottom: hp('2.5%'),
   },
   fieldLabel: {
     fontSize: wp('4%'),
@@ -566,27 +537,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-  },
-  clearAllButton: {
-    backgroundColor: '#fff',
-    borderRadius: wp('2%'),
-    paddingVertical: hp('1.5%'),
-    paddingHorizontal: wp('4%'),
-    alignItems: 'center',
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#dc3545',
-  },
-  clearAllButtonText: {
-    color: '#dc3545',
-    fontSize: wp('4%'),
-    fontFamily: 'Poppins-SemiBold',
-    marginLeft: wp('2%'),
-  },
-  clearAllIcon: {
-    marginRight: wp('1%'),
   },
   saveButton: {
     backgroundColor: '#0D6EFD',
@@ -594,6 +546,8 @@ const styles = StyleSheet.create({
     paddingVertical: hp('2%'),
     paddingHorizontal: wp('6%'),
     alignItems: 'center',
+    flex: 1,
+    maxWidth: wp('80%'),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
