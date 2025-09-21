@@ -56,9 +56,6 @@ const ProfileScreen = ({ navigation }) => {
     if (patientData) {
       console.log('🔄 Syncing form fields with Redux patient data:', patientData);
       
-      // Log complete user slice data when patient data changes
-      const state = { user: userState };
-      logUserSliceData(state);
       
       const newName = patientData.name || patientData.patient_name || '';
       const newPhone = patientData.phone_number || patientData.phone || '';
@@ -110,9 +107,6 @@ const ProfileScreen = ({ navigation }) => {
         console.log('⚠️ No patient ID available, cannot fetch profile');
       }
 
-      // Log complete user slice data after API fetch
-      const state = { user: userState };
-      logUserSliceData(state);
 
       // Only use Redux patient data - no fallbacks
       if (patientData) {
