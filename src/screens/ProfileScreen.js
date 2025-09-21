@@ -86,9 +86,30 @@ const ProfileScreen = ({ navigation }) => {
       setLoading(true);
       console.log('🔄 Fetching user profile from API via Redux...');
       console.log('🔄 Current patientId from Redux:', patientId);
+      console.log('🔄 Current userState:', userState);
 
-      // Fetch user profile from API via Redux - pass patientId explicitly
-      await dispatch(fetchUserProfile(patientId));
+      // If no patientId, try to get it from OTP response data
+      let currentPatientId = patientId;
+      if (!currentPatientId && userState.otpResponse?.data?.id) {
+        currentPatientId = userState.otpResponse.data.id;
+        console.log('🔄 Using patientId from OTP response:', currentPatientId);
+      }
+
+      // Check if we already have complete patient data
+      const hasCompleteData = userState.patientData && 
+        userState.patientData.name && 
+        userState.patientData.email && 
+        userState.patientData.gender;
+      
+      if (hasCompleteData) {
+        console.log('✅ Patient data already complete, skipping API call');
+      } else if (currentPatientId) {
+        console.log('🔄 Fetching fresh profile data from API...');
+        // Fetch user profile from API via Redux - pass patientId explicitly
+        await dispatch(fetchUserProfile(currentPatientId));
+      } else {
+        console.log('⚠️ No patient ID available, cannot fetch profile');
+      }
 
       // Log complete user slice data after API fetch
       const state = { user: userState };
