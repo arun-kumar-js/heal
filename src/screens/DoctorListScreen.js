@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -29,6 +30,7 @@ import {
 import BackButton from '../components/BackButton';
 import { getOTPResponse, getFormattedUserProfile } from '../utils/otpStorage';
 import { PoppinsFonts } from '../config/fonts';
+import { getHospitalDetails } from '../services/hospitalDetailsApi';
 
 const IMAGE_BASE_URL = 'https://spiderdesk.asia/healto/';
 
@@ -260,13 +262,13 @@ console.log(doctors)
           <View style={styles.imageOverlay}>
             <View style={styles.ratingContainer}>
               <View style={styles.starsContainer}>
-                {renderStars(doctor.rating || 4.0)}
+                {renderStars(doctor.rating )}
               </View>
-              <Text style={styles.ratingText}>{(doctor.rating || 4.0).toFixed(1)}</Text>
+              <Text style={styles.ratingText}>{(doctor.rating ).toFixed(1)}</Text>
             </View>
             
             <View style={styles.doctorInfo}>
-              <Text style={styles.doctorName}>{doctor.name || 'Dr. Unknown'}</Text>
+              <Text style={styles.doctorName}>{doctor.name }</Text>
               <Text style={styles.doctorSpecialty}>{getDoctorSpecialty(doctor)}</Text>
               <Text style={styles.doctorClinic}>{doctor?.clinic?.name }</Text>
             </View>
@@ -278,11 +280,16 @@ console.log(doctors)
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -293,7 +300,7 @@ console.log(doctors)
           <Text style={styles.headerTitle}>Lets Find Your Problem?</Text>
           <Text style={styles.headerSubtitle}>Select the Doctor</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -385,7 +392,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: '#0D6EFD',
     paddingTop: hp('1%'),
     paddingBottom: hp('10%'),
     position: 'relative',
@@ -474,8 +480,8 @@ const styles = StyleSheet.create({
   },
   ratingContainer: {
     position: 'absolute',
-    top: 15,
-    right: 15,
+    top:wp(".5%"),
+    right:hp (".2%"),
     flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingVertical: 6,

@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -208,11 +209,27 @@ const PaymentScreen = ({ navigation, route }) => {
               console.log('  - Selected payment type:', selectedPayment);
               console.log('  - Payment status:', paymentStatus);
               
+              // Map payment mode to API format
+              const getPaymentModeForAPI = (mode) => {
+                switch (mode) {
+                  case 'UPI':
+                    return 'upi';
+                  case 'Credit Card':
+                    return 'credit_card';
+                  case 'Net Banking':
+                    return 'net_banking';
+                  case 'Cash':
+                    return 'cash';
+                  default:
+                    return mode.toLowerCase();
+                }
+              };
+
               // Prepare payment update data
               const paymentUpdateData = {
                 appointment_details: appointmentData,
                 payment_status: paymentStatus,
-                payment_mode: selectedPaymentMode.toLowerCase()
+                payment_mode: getPaymentModeForAPI(selectedPaymentMode)
               };
 
               // Validate payment data
@@ -313,19 +330,24 @@ const PaymentScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Icon name="arrow-left" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Booking Details</Text>
+        <Text style={styles.headerTitle}>Payment Details</Text>
         <View style={styles.placeholder} />
-      </View>
+      </LinearGradient>
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
@@ -374,9 +396,9 @@ const PaymentScreen = ({ navigation, route }) => {
         <View style={styles.doctorCard}>
           <Image source={getDoctorImage(doctor)} style={styles.doctorImage} />
           <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctor?.name || 'Dr. Aishwarya'}</Text>
+            <Text style={styles.doctorName}>{doctor?.name}</Text>
             <Text style={styles.doctorSpecialty}>
-              {getDoctorSpecialty(doctor)} From {doctor?.clinic_name || 'KL Clinic'}
+              {getDoctorSpecialty(doctor)} From {doctor?.clinic?.name }
             </Text>
             <View style={styles.ratingContainer}>
               <View style={styles.stars}>

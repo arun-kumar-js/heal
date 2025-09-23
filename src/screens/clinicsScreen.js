@@ -12,6 +12,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -56,13 +57,33 @@ const ClinicsScreen = ({ navigation, route }) => {
       console.log('Data Type:', typeof response.data);
       console.log('Data Keys:', Object.keys(response.data));
       
-      if (response.data.categories) {
+      // Handle the correct API response structure
+      if (response.data.clinics) {
+        console.log('Clinics found in response');
+        console.log('Clinics data:', response.data.clinics);
+        
+        // If clinics is a single object, convert it to array
+        const clinicsArray = Array.isArray(response.data.clinics) 
+          ? response.data.clinics 
+          : [response.data.clinics];
+          
+        // Add doctors_count to each clinic object
+        const clinicsWithDoctorsCount = clinicsArray.map(clinic => ({
+          ...clinic,
+          doctors_count: response.data.doctors_count || 0
+        }));
+        
+        console.log('Processed clinics:', clinicsWithDoctorsCount);
+        setClinics(clinicsWithDoctorsCount);
+        setFilteredClinics(clinicsWithDoctorsCount);
+      } else if (response.data.categories) {
+        // Fallback for old API structure
         console.log('Categories found:', response.data.categories.length);
         console.log('Categories data:', response.data.categories);
         setClinics(response.data.categories);
         setFilteredClinics(response.data.categories);
       } else {
-        console.log('No categories found in API response');
+        console.log('No clinics or categories found in API response');
         setClinics([]);
         setFilteredClinics([]);
       }
@@ -168,11 +189,16 @@ const ClinicsScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#003784" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -185,7 +211,7 @@ const ClinicsScreen = ({ navigation, route }) => {
             <Text style={styles.headerSubtitle}>Select the {selectedTypeFormatted}</Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -232,7 +258,7 @@ const ClinicsScreen = ({ navigation, route }) => {
                   <View style={styles.hospitalInfo}>
                     <View style={styles.hospitalDetails}>
                       <Text style={styles.hospitalName}>{clinic.name}</Text>
-                      <Text style={styles.hospitalType}>{getHospitalType(clinic)}</Text>
+                      
                       <View style={styles.ratingContainer}>
                         <View style={styles.starsContainer}>
                           {renderStars(clinic.rating)}
@@ -267,7 +293,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: '#003784',
     paddingTop: Platform.OS === 'ios' ? 0 : 0,
     paddingBottom: hp('9%'),
     

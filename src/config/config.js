@@ -13,3 +13,4 @@ export const CATEGORIES_URL = BASE_URL + 'categories';
 export const HOSPITALS_BY_SPECIALIZATION_URL = BASE_URL + 'specialization/by/clinic';
 export const PATIENT_UPDATE_URL = BASE_URL + 'patient-update';
 export const PAYMENT_UPDATE_URL = BASE_URL + 'payment-update';
+export const DOCTOR_DETAILS_URL = BASE_URL + 'doctorDetails';

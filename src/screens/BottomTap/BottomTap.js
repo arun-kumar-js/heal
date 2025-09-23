@@ -66,7 +66,9 @@ const BottomTap = () => {
         },
         tabBarBackground: () => (
           <LinearGradient
-            colors={['#0D6EFD', '#1A83FF']}
+            colors={['#1A83FF', '#003784']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.tabBarBackground}
           />
         ),

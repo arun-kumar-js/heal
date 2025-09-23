@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -129,16 +130,28 @@ const Category = ({ navigation }) => {
       dispatch(setSelectedCategory(category.name));
       
       // Show loading state
-      console.log('Fetching hospitals for category:', category.name);
+      console.log('🔍 CATEGORY DEBUG - Fetching hospitals for category:', category.name);
+      console.log('🔍 CATEGORY DEBUG - Category object:', JSON.stringify(category, null, 2));
       
       // Make API call to get hospitals by specialization
       const result = await fetchHospitalsBySpecialization(category.name);
       
+      console.log('🔍 CATEGORY DEBUG - API result:', JSON.stringify(result, null, 2));
+      
       if (result.success && result.data) {
-        console.log('Hospitals fetched successfully:', result.data);
+        console.log('✅ CATEGORY DEBUG - Hospitals fetched successfully:', result.data);
+        console.log('✅ CATEGORY DEBUG - Data type:', typeof result.data);
+        console.log('✅ CATEGORY DEBUG - Is array:', Array.isArray(result.data));
+        console.log('✅ CATEGORY DEBUG - Data length:', result.data?.length);
         
         // Ensure data is an array
         const hospitalsData = Array.isArray(result.data) ? result.data : [];
+        
+        console.log('✅ CATEGORY DEBUG - Final hospitals data:', hospitalsData);
+        console.log('✅ CATEGORY DEBUG - Navigating to HospitalListByCategoryScreen with:', {
+          selectedCategory: category.name,
+          hospitalsCount: hospitalsData.length
+        });
         
         // Navigate to hospital list screen with the fetched data
         navigation.navigate('HospitalListByCategoryScreen', {
@@ -146,15 +159,19 @@ const Category = ({ navigation }) => {
           hospitals: hospitalsData
         });
       } else {
-        console.error('Failed to fetch hospitals:', result.error);
+        console.error('❌ CATEGORY DEBUG - Failed to fetch hospitals:', result.error);
+        console.error('❌ CATEGORY DEBUG - Result object:', JSON.stringify(result, null, 2));
         
         // Fallback to doctor list if hospital API fails
+        console.log('🔄 CATEGORY DEBUG - Falling back to DoctorListScreen');
         navigation.navigate('DoctorListScreen');
       }
     } catch (error) {
-      console.error('Error in handleCategoryPress:', error);
+      console.error('❌ CATEGORY DEBUG - Error in handleCategoryPress:', error);
+      console.error('❌ CATEGORY DEBUG - Error stack:', error.stack);
       
       // Fallback to doctor list if there's an error
+      console.log('🔄 CATEGORY DEBUG - Falling back to DoctorListScreen due to error');
       navigation.navigate('DoctorListScreen');
     }
   };
@@ -184,12 +201,17 @@ const Category = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
-  
+ 
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -200,7 +222,7 @@ const Category = ({ navigation }) => {
           <Text style={styles.headerTitle}>Lets Find Your Problem?</Text>
           <Text style={styles.headerSubtitle}>Select the Department</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -230,7 +252,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: '#0D6EFD',
     paddingTop: hp('1%'),
     paddingBottom: hp('8%'),
     position: 'relative',

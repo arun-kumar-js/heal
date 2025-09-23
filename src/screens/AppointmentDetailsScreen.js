@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
+  Linking,
+  Alert,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   widthPercentageToDP as wp,
@@ -23,7 +25,13 @@ import {
   formatAppointmentDate,
   formatAppointmentTime
 } from '../services/appointmentBookingApi';
+import { submitReview, testReviewEndpoint } from '../services/reviewApi';
 import { PoppinsFonts } from '../config/fonts';
+import { 
+  getReviewForAppointment, 
+  saveReviewForAppointment, 
+  hasReviewForAppointment 
+} from '../utils/reviewStorage';
 
 // Helper function to get specialization name from ID
 const getSpecializationName = (specializationId) => {
@@ -44,6 +52,45 @@ const getSpecializationName = (specializationId) => {
 
 const AppointmentDetailsScreen = ({ navigation, route }) => {
   const { appointment, doctor } = route.params || {};
+  
+  // Feedback form state
+  const [doctorRating, setDoctorRating] = useState(0);
+  const [hospitalRating, setHospitalRating] = useState(0);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isReviewSubmitted, setIsReviewSubmitted] = useState(false);
+  const [savedReview, setSavedReview] = useState(null);
+
+  // Test API endpoint when component mounts (only for completed appointments)
+  React.useEffect(() => {
+    if (status?.toLowerCase() === 'completed') {
+      console.log('Testing review endpoint for completed appointment...');
+      testReviewEndpoint();
+    }
+  }, [status]);
+
+  // Load saved review data when component mounts
+  React.useEffect(() => {
+    const loadSavedReview = async () => {
+      if (status?.toLowerCase() === 'completed') {
+        const appointmentId = appointmentData?.id || appointment?.id;
+        if (appointmentId) {
+          const reviewExists = await hasReviewForAppointment(appointmentId);
+          if (reviewExists) {
+            const savedReviewData = await getReviewForAppointment(appointmentId);
+            if (savedReviewData) {
+              setSavedReview(savedReviewData);
+              setDoctorRating(savedReviewData.doctor_rating || 0);
+              setHospitalRating(savedReviewData.clinic_rating || 0);
+              setIsReviewSubmitted(true);
+              console.log('Loaded saved review:', savedReviewData);
+            }
+          }
+        }
+      }
+    };
+
+    loadSavedReview();
+  }, [status, appointmentData, appointment]);
   
   // Extract data from appointment object (handle new API structure)
   const appointmentData = appointment?.appointment || appointment;
@@ -81,9 +128,10 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
   
   // Get doctor info
   const doctorName = doctorData?.name || 'Dr. Unknown';
-  const doctorSpecialty = doctorData?.specialization_id ? 
-    getSpecializationName(doctorData.specialization_id) : 
-    (doctorData?.specialization || 'General Medicine');
+  const doctorSpecialty = doctorData?.specialization?.name || 
+    (doctorData?.specialization_id ? 
+      getSpecializationName(doctorData.specialization_id) : 
+      'Specialization not available');
   const doctorPhone = doctorData?.phone || '';
   const doctorEmail = doctorData?.email || '';
   const doctorExperience = doctorData?.experience_years || '';
@@ -123,6 +171,103 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
   
   const paymentInfo = getPaymentStatusInfo(paymentStatus);
 
+  // Feedback form functions
+  const handleDoctorRating = (rating) => {
+    setDoctorRating(rating);
+  };
+
+  const handleHospitalRating = (rating) => {
+    setHospitalRating(rating);
+  };
+
+  // Handle phone call functionality
+  const handlePhoneCall = () => {
+    const phoneNumber = clinicPhone || doctorPhone;
+    if (phoneNumber) {
+      const phoneUrl = `tel:${phoneNumber}`;
+      Linking.openURL(phoneUrl).catch(err => {
+        console.error('Error opening phone dialer:', err);
+        Alert.alert('Error', 'Unable to open phone dialer');
+      });
+    } else {
+      Alert.alert('No Phone Number', 'Phone number not available');
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (doctorRating === 0 || hospitalRating === 0) {
+      alert('Please rate both doctor and hospital before submitting feedback.');
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    try {
+      // Prepare review data according to the API specification
+      const reviewData = {
+        doctor_id: doctorData?.id || appointmentData?.doctor_id,
+        clinic_id: clinicData?.id || appointmentData?.clinic_id,
+        patient_id: patientData?.id || appointmentData?.patient_id,
+        doctor_rating: doctorRating,
+        clinic_rating: hospitalRating,
+        appointment_id: appointmentData?.id || appointment?.id
+      };
+
+      // Detailed console logging for debugging
+      console.log('=== REVIEW SUBMISSION DEBUG ===');
+      console.log('Doctor Rating:', doctorRating);
+      console.log('Hospital Rating:', hospitalRating);
+      console.log('--- Raw Data Sources ---');
+      console.log('doctorData:', doctorData);
+      console.log('clinicData:', clinicData);
+      console.log('patientData:', patientData);
+      console.log('appointmentData:', appointmentData);
+      console.log('appointment:', appointment);
+      console.log('--- Extracted IDs ---');
+      console.log('doctor_id:', doctorData?.id || appointmentData?.doctor_id);
+      console.log('clinic_id:', clinicData?.id || appointmentData?.clinic_id);
+      console.log('patient_id:', patientData?.id || appointmentData?.patient_id);
+      console.log('appointment_id:', appointmentData?.id || appointment?.id);
+      console.log('--- Final Review Data ---');
+      console.log('Review Data Object:', JSON.stringify(reviewData, null, 2));
+      console.log('=== END REVIEW DEBUG ===');
+
+      // Save review data locally first
+      const appointmentId = appointmentData?.id || appointment?.id;
+      const saveSuccess = await saveReviewForAppointment(appointmentId, reviewData);
+      
+      if (saveSuccess) {
+        console.log('Review saved locally successfully');
+        setSavedReview(reviewData);
+        setIsReviewSubmitted(true);
+        alert('Thank you for your feedback!');
+      } else {
+        console.error('Failed to save review locally');
+        alert('Failed to save feedback. Please try again.');
+        return;
+      }
+
+      // Try to submit to API (optional - for server sync)
+      try {
+        const result = await submitReview(reviewData);
+        console.log('API Response:', result);
+        
+        if (result.success) {
+          console.log('Review also submitted to server successfully');
+        } else {
+          console.log('Server submission failed, but local save was successful');
+        }
+      } catch (apiError) {
+        console.log('API submission failed, but local save was successful:', apiError);
+      }
+      
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      alert('Failed to submit feedback. Please try again.');
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
   const renderStars = (rating) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -146,12 +291,38 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
     return stars;
   };
 
+  const renderInteractiveStars = (rating, onRatingChange) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <TouchableOpacity
+          key={i}
+          onPress={() => onRatingChange(i)}
+          style={styles.starButton}
+        >
+          <Icon 
+            name="star" 
+            size={20} 
+            color={i <= rating ? "#FFD700" : "#E5E5E5"} 
+            solid={i <= rating}
+          />
+        </TouchableOpacity>
+      );
+    }
+    return stars;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -160,7 +331,7 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Appointment Details</Text>
         <View style={styles.headerRight} />
-      </View>
+      </LinearGradient>
 
       {/* Content with KeyboardAvoidingView */}
       <KeyboardAvoidingView 
@@ -169,205 +340,250 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Doctor Information Card */}
-        <View style={styles.doctorCard}>
-          <Image 
-            source={{ uri: doctorImage }} 
-            style={styles.doctorImage} 
-          />
-          <View style={styles.doctorInfo}>
-            <Text style={styles.doctorName}>{doctorName}</Text>
-            <Text style={styles.doctorSpecialty}>
-              {doctorSpecialty}
-            </Text>
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingText}>{doctorData?.rating || '4.5'}</Text>
-              <View style={styles.starsContainer}>
-                {renderStars(doctorData?.rating || 4.5)}
+         {/* Doctor Information Card */}
+         <View style={styles.doctorCard}>
+           <Image 
+             source={{ uri: doctorImage }} 
+             style={styles.doctorImage} 
+           />
+           <View style={styles.doctorInfo}>
+             <Text style={styles.doctorName}>{doctorName}</Text>
+             <Text style={styles.doctorSpecialty}>
+               {doctorSpecialty}
+             </Text>
+             <Text style={styles.hospitalName}>{clinicName}</Text>
+             <View style={styles.ratingContainer}>
+               <Text style={styles.ratingText}>{doctorData?.rating || '4.5'}</Text>
+               <View style={styles.starsContainer}>
+                 {renderStars(doctorData?.rating || 4.5)}
+               </View>
+             </View>
+           </View>
+           <TouchableOpacity style={styles.callButton} onPress={handlePhoneCall}>
+             <Icon name="phone" size={16} color="#FFFFFF" />
+           </TouchableOpacity>
+         </View>
+
+         {/* Payment Details Card */}
+         <View style={styles.paymentCard}>
+           <View style={styles.paymentCardHeader}>
+             <View style={styles.paymentCardTitleContainer}>
+               <Icon name="credit-card" size={20} color="#0D6EFD" />
+               <Text style={styles.paymentCardTitle}>Payment Details</Text>
+             </View>
+           </View>
+           
+           <View style={styles.paymentInfoGrid}>
+             <View style={styles.paymentInfoItem}>
+               <View style={styles.paymentInfoIconContainer}>
+                 <Icon name="money-bill-wave" size={16} color="#0D6EFD" />
+               </View>
+               <View style={styles.paymentInfoContent}>
+                 <Text style={styles.paymentInfoLabel}>Total Amount</Text>
+                 <Text style={styles.paymentInfoValue}>₹{paymentAmount || '0.00'}</Text>
+               </View>
+             </View>
+
+             {amountPaid && amountPaid !== '0.00' && (
+               <View style={styles.paymentInfoItem}>
+                 <View style={styles.paymentInfoIconContainer}>
+                   <Icon name="check-circle" size={16} color="#28a745" />
+                 </View>
+                 <View style={styles.paymentInfoContent}>
+                   <Text style={styles.paymentInfoLabel}>Amount Paid</Text>
+                   <Text style={[styles.paymentInfoValue, { color: '#28a745' }]}>₹{amountPaid}</Text>
+                 </View>
+               </View>
+             )}
+
+             {balanceAmount && balanceAmount !== '0.00' && (
+               <View style={styles.paymentInfoItem}>
+                 <View style={styles.paymentInfoIconContainer}>
+                   <Icon name="exclamation-triangle" size={16} color="#dc3545" />
+                 </View>
+                 <View style={styles.paymentInfoContent}>
+                   <Text style={styles.paymentInfoLabel}>Balance Amount</Text>
+                   <Text style={[styles.paymentInfoValue, { color: '#dc3545' }]}>₹{balanceAmount}</Text>
+                 </View>
+               </View>
+             )}
+
+             {refundAmount && refundAmount !== '0.00' && (
+               <View style={styles.paymentInfoItem}>
+                 <View style={styles.paymentInfoIconContainer}>
+                   <Icon name="undo" size={16} color="#17a2b8" />
+                 </View>
+                 <View style={styles.paymentInfoContent}>
+                   <Text style={styles.paymentInfoLabel}>Refund Amount</Text>
+                   <Text style={[styles.paymentInfoValue, { color: '#17a2b8' }]}>₹{refundAmount}</Text>
+                 </View>
+               </View>
+             )}
+
+             <View style={styles.paymentInfoItem}>
+               <View style={styles.paymentInfoIconContainer}>
+                 <Icon name="info-circle" size={16} color="#0D6EFD" />
+               </View>
+               <View style={styles.paymentInfoContent}>
+                 <Text style={styles.paymentInfoLabel}>Payment Status</Text>
+                 <View style={[styles.paymentStatusBadge, { backgroundColor: paymentInfo.color }]}>
+                   <Text style={styles.paymentStatusText}>{paymentInfo.text}</Text>
+                 </View>
+               </View>
+             </View>
+           </View>
+         </View>
+
+        {/* Appointment Details Card */}
+        <View style={styles.appointmentDetailsCard}>
+          <View style={styles.appointmentDetailsCardHeader}>
+            <View style={styles.appointmentDetailsCardTitleContainer}>
+              <Icon name="calendar-alt" size={20} color="#0D6EFD" />
+              <Text style={styles.appointmentDetailsCardTitle}>Appointment Details</Text>
+            </View>
+          </View>
+          
+          <View style={styles.appointmentDetailsGrid}>
+            <View style={styles.appointmentDetailsItem}>
+              <View style={styles.appointmentDetailsIconContainer}>
+                <Icon name="bullseye" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.appointmentDetailsContent}>
+                <Text style={styles.appointmentDetailsLabel}>Token Number</Text>
+                <Text style={styles.appointmentDetailsValue}>
+                  {tokenNumber ? tokenNumber.toString() : 'Not assigned'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.appointmentDetailsItem}>
+              <View style={styles.appointmentDetailsIconContainer}>
+                <Icon name="clock" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.appointmentDetailsContent}>
+                <Text style={styles.appointmentDetailsLabel}>Appointment Time</Text>
+                <Text style={styles.appointmentDetailsValue}>{appointmentTime}</Text>
+              </View>
+            </View>
+
+            <View style={styles.appointmentDetailsItem}>
+              <View style={styles.appointmentDetailsIconContainer}>
+                <Icon name="calendar" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.appointmentDetailsContent}>
+                <Text style={styles.appointmentDetailsLabel}>Appointment Date</Text>
+                <Text style={styles.appointmentDetailsValue}>{appointmentDate}</Text>
+              </View>
+            </View>
+
+            <View style={styles.appointmentDetailsItemFull}>
+              <View style={styles.appointmentDetailsIconContainer}>
+                <Icon name="file-medical-alt" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.appointmentDetailsContent}>
+                <Text style={styles.appointmentDetailsLabel}>Reason For Visit</Text>
+                <Text style={styles.appointmentDetailsValue}>
+                  {description || 'No description provided'}
+                </Text>
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.callButton}>
-            <Icon name="phone" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
         </View>
 
-        {/* Token Number Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Token Number</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="bullseye" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={tokenNumber ? tokenNumber.toString() : 'Not assigned'}
-              editable={false}
-              placeholder="Token Number"
-            />
-          </View>
-        </View>
-
-        {/* Reason For Visit Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reason For Visit</Text>
-          <View style={styles.textAreaContainer}>
-            <Text style={styles.textArea}>
-              {description || 'No description provided'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Time Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Time</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="clock" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={appointmentTime}
-              editable={false}
-              placeholder="Time"
-            />
-          </View>
-        </View>
-
-        {/* Date Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Date</Text>
-          <View style={styles.inputContainer}>
-            <Icon name="calendar" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={appointmentDate}
-              editable={false}
-              placeholder="Date"
-            />
-          </View>
-        </View>
 
         {/* Appointment Status Card */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Appointment Status:</Text>
-            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-              <Text style={styles.statusText}>{statusText}</Text>
+       
+        {/* Patient Information Card */}
+        <View style={styles.patientCard}>
+          <View style={styles.patientCardHeader}>
+            <View style={styles.patientCardTitleContainer}>
+              <Icon name="user-circle" size={20} color="#0D6EFD" />
+              <Text style={styles.patientCardTitle}>Patient Information</Text>
             </View>
           </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Payment Status:</Text>
-            <View style={[styles.paymentBadge, { 
-              backgroundColor: paymentInfo.color
-            }]}>
-              <Text style={{color:"black",fontSize:wp('3%'),fontFamily:PoppinsFonts.SemiBold}}>
-                {paymentInfo.text}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Date & Time:</Text>
-            <Text style={styles.dateTimeText}>{appointmentDate} at {appointmentTime}</Text>
-          </View>
-          {description && (
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Description:</Text>
-              <Text style={styles.descriptionText}>{description}</Text>
-            </View>
-          )}
-          {paymentAmount && paymentAmount !== '0.00' && (
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Amount:</Text>
-              <Text style={styles.amountText}>₹{paymentAmount}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Personal Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Patient Information</Text>
           
-          <View style={styles.inputContainer}>
-            <Icon name="user" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={patientName}
-              editable={false}
-              placeholder="Full Name"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Icon name="phone" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={patientPhone || 'Not provided'}
-              editable={false}
-              placeholder="Mobile Number"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Icon name="envelope" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={patientEmail || 'Not provided'}
-              editable={false}
-              placeholder="Email"
-            />
-          </View>
-
-          {patientGender && (
-            <View style={styles.inputContainer}>
-              <Icon name="venus-mars" size={16} color="#0D6EFD" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={patientGender}
-                editable={false}
-                placeholder="Gender"
-              />
+          <View style={styles.patientInfoGrid}>
+            <View style={styles.patientInfoItem}>
+              <View style={styles.patientInfoIconContainer}>
+                <Icon name="user" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.patientInfoContent}>
+                <Text style={styles.patientInfoLabel}>Full Name</Text>
+                <Text style={styles.patientInfoValue}>{patientName}</Text>
+              </View>
             </View>
-          )}
+
+            <View style={styles.patientInfoItem}>
+              <View style={styles.patientInfoIconContainer}>
+                <Icon name="phone" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.patientInfoContent}>
+                <Text style={styles.patientInfoLabel}>Mobile Number</Text>
+                <Text style={styles.patientInfoValue}>{patientPhone || 'Not provided'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.patientInfoItem}>
+              <View style={styles.patientInfoIconContainer}>
+                <Icon name="envelope" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.patientInfoContent}>
+                <Text style={styles.patientInfoLabel}>Email Address</Text>
+                <Text style={styles.patientInfoValue}>{patientEmail || 'Not provided'}</Text>
+              </View>
+            </View>
+
+           
+          </View>
         </View>
 
-        {/* Clinic Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Clinic Information</Text>
+        {/* Clinic Information Card */}
+        <View style={styles.clinicCard}>
+          <View style={styles.clinicCardHeader}>
+            <View style={styles.clinicCardTitleContainer}>
+              <Icon name="hospital" size={20} color="#0D6EFD" />
+              <Text style={styles.clinicCardTitle}>Clinic Information</Text>
+            </View>
+          </View>
           
-          <View style={styles.inputContainer}>
-            <Icon name="hospital" size={16} color="#0D6EFD" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={clinicName}
-              editable={false}
-              placeholder="Clinic Name"
-            />
+          <View style={styles.clinicInfoGrid}>
+            <View style={styles.clinicInfoItem}>
+              <View style={styles.clinicInfoIconContainer}>
+                <Icon name="hospital" size={16} color="#0D6EFD" />
+              </View>
+              <View style={styles.clinicInfoContent}>
+                <Text style={styles.clinicInfoLabel}>Clinic Name</Text>
+                <Text style={styles.clinicInfoValue}>{clinicName}</Text>
+              </View>
+            </View>
+
+            {clinicPhone && (
+              <View style={styles.clinicInfoItem}>
+                <View style={styles.clinicInfoIconContainer}>
+                  <Icon name="phone" size={16} color="#0D6EFD" />
+                </View>
+                <View style={styles.clinicInfoContent}>
+                  <Text style={styles.clinicInfoLabel}>Phone Number</Text>
+                  <Text style={styles.clinicInfoValue}>{clinicPhone}</Text>
+                </View>
+              </View>
+            )}
+
+            {clinicEmail && (
+              <View style={styles.clinicInfoItem}>
+                <View style={styles.clinicInfoIconContainer}>
+                  <Icon name="envelope" size={16} color="#0D6EFD" />
+                </View>
+                <View style={styles.clinicInfoContent}>
+                  <Text style={styles.clinicInfoLabel}>Email Address</Text>
+                  <Text style={styles.clinicInfoValue}>{clinicEmail}</Text>
+                </View>
+              </View>
+            )}
           </View>
-
-          {clinicPhone && (
-            <View style={styles.inputContainer}>
-              <Icon name="phone" size={16} color="#0D6EFD" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={clinicPhone}
-                editable={false}
-                placeholder="Clinic Phone"
-              />
-            </View>
-          )}
-
-          {clinicEmail && (
-            <View style={styles.inputContainer}>
-              <Icon name="envelope" size={16} color="#0D6EFD" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                value={clinicEmail}
-                editable={false}
-                placeholder="Clinic Email"
-              />
-            </View>
-          )}
-
         </View>
 
-        {/* Payment Section */}
+        {/* Payment Section
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Details</Text>
           <View style={styles.paymentContainer}>
@@ -400,7 +616,62 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
               </View>
             </View>
           </View>
-        </View>
+        </View> */}
+
+        {/* Feedback Form - Only show for completed appointments */}
+        {status?.toLowerCase() === 'completed' && (
+          <View style={styles.feedbackCard}>
+            <Text style={styles.feedbackTitle}>
+              {isReviewSubmitted ? 'Your Review' : 'How was your experience?'}
+            </Text>
+            
+            <View style={styles.ratingSection}>
+              <View style={styles.ratingRow}>
+                <Text style={styles.ratingLabel}>Rate Doctor</Text>
+                <View style={styles.starsContainer}>
+                  {isReviewSubmitted ? (
+                    renderStars(doctorRating)
+                  ) : (
+                    renderInteractiveStars(doctorRating, handleDoctorRating)
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.ratingRow}>
+                <Text style={styles.ratingLabel}>Rate Hospital</Text>
+                <View style={styles.starsContainer}>
+                  {isReviewSubmitted ? (
+                    renderStars(hospitalRating)
+                  ) : (
+                    renderInteractiveStars(hospitalRating, handleHospitalRating)
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {isReviewSubmitted && savedReview && (
+              <View style={styles.submittedReviewInfo}>
+                <Text style={styles.submittedReviewText}>
+                  Review submitted on {new Date(savedReview.submittedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity 
+              style={[
+                styles.submitButton, 
+                (isSubmittingFeedback || isReviewSubmitted) && styles.submitButtonDisabled
+              ]}
+              onPress={handleSubmitFeedback}
+              disabled={isSubmittingFeedback || isReviewSubmitted}
+            >
+              <Text style={styles.submitButtonText}>
+                {isSubmittingFeedback ? 'Submitting...' : 
+                 isReviewSubmitted ? 'Review Submitted' : 'Submit Review'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -416,7 +687,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#0D6EFD',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -473,8 +743,14 @@ const styles = StyleSheet.create({
   doctorSpecialty: {
     fontSize: wp('3.5%'),
     color: '#666666',
-    marginBottom: hp('1%'),
+    marginBottom: hp('0.5%'),
     fontFamily: 'Poppins-Regular',
+  },
+  hospitalName: {
+    fontSize: wp('3.2%'),
+    color: '#0D6EFD',
+    fontFamily: PoppinsFonts.SemiBold,
+    marginBottom: hp('0.5%'),
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -653,6 +929,391 @@ const styles = StyleSheet.create({
     fontSize: wp('3.5%'),
     fontFamily: PoppinsFonts.SemiBold,
     color:"black"
+  },
+  // Patient Card Styles
+  patientCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('4%'),
+    padding: wp('4%'),
+    marginBottom: hp('2%'),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  patientCardHeader: {
+    marginBottom: hp('2%'),
+    paddingBottom: hp('1%'),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  patientCardTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  patientCardTitle: {
+    fontSize: wp('4.5%'),
+    color: '#0D6EFD',
+    fontFamily: PoppinsFonts.Bold,
+    marginLeft: wp('2%'),
+  },
+  patientInfoGrid: {
+    gap: hp('1.5%'),
+  },
+  patientInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp('1%'),
+    paddingHorizontal: wp('2%'),
+    backgroundColor: '#F8F9FA',
+    borderRadius: wp('2%'),
+    borderLeftWidth: 3,
+    borderLeftColor: '#0D6EFD',
+  },
+  patientInfoIconContainer: {
+    width: wp('8%'),
+    height: wp('8%'),
+    borderRadius: wp('4%'),
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: wp('3%'),
+  },
+  patientInfoContent: {
+    flex: 1,
+  },
+  patientInfoLabel: {
+    fontSize: wp('3.2%'),
+    color: '#666666',
+    fontFamily: PoppinsFonts.Regular,
+    marginBottom: hp('0.3%'),
+  },
+  patientInfoValue: {
+    fontSize: wp('3.8%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  // Clinic Card Styles
+  clinicCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('4%'),
+    padding: wp('4%'),
+    marginBottom: hp('2%'),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  clinicCardHeader: {
+    marginBottom: hp('2%'),
+    paddingBottom: hp('1%'),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  clinicCardTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clinicCardTitle: {
+    fontSize: wp('4.5%'),
+    color: '#0D6EFD',
+    fontFamily: PoppinsFonts.Bold,
+    marginLeft: wp('2%'),
+  },
+  clinicInfoGrid: {
+    gap: hp('1.5%'),
+  },
+  clinicInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp('1%'),
+    paddingHorizontal: wp('2%'),
+    backgroundColor: '#F8F9FA',
+    borderRadius: wp('2%'),
+    borderLeftWidth: 3,
+    borderLeftColor: '#0D6EFD',
+  },
+  clinicInfoIconContainer: {
+    width: wp('8%'),
+    height: wp('8%'),
+    borderRadius: wp('4%'),
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: wp('3%'),
+  },
+  clinicInfoContent: {
+    flex: 1,
+  },
+  clinicInfoLabel: {
+    fontSize: wp('3.2%'),
+    color: '#666666',
+    fontFamily: PoppinsFonts.Regular,
+    marginBottom: hp('0.3%'),
+  },
+  clinicInfoValue: {
+    fontSize: wp('3.8%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  // Payment Card Styles
+  paymentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('4%'),
+    padding: wp('4%'),
+    marginBottom: hp('2%'),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  paymentCardHeader: {
+    marginBottom: hp('2%'),
+    paddingBottom: hp('1%'),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  paymentCardTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paymentCardTitle: {
+    fontSize: wp('4.5%'),
+    color: '#0D6EFD',
+    fontFamily: PoppinsFonts.Bold,
+    marginLeft: wp('2%'),
+  },
+  paymentInfoGrid: {
+    gap: hp('1.5%'),
+  },
+  paymentInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp('1%'),
+    paddingHorizontal: wp('2%'),
+    backgroundColor: '#F8F9FA',
+    borderRadius: wp('2%'),
+    borderLeftWidth: 3,
+    borderLeftColor: '#0D6EFD',
+  },
+  paymentInfoIconContainer: {
+    width: wp('8%'),
+    height: wp('8%'),
+    borderRadius: wp('4%'),
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: wp('3%'),
+  },
+  paymentInfoContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentInfoLabel: {
+    fontSize: wp('3.2%'),
+    color: '#666666',
+    fontFamily: PoppinsFonts.Regular,
+    flex: 1,
+  },
+  paymentInfoValue: {
+    fontSize: wp('3.8%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  paymentStatusBadge: {
+    paddingHorizontal: wp('2.5%'),
+    paddingVertical: hp('0.3%'),
+    borderRadius: wp('1.5%'),
+  },
+  paymentStatusText: {
+    fontSize: wp('2.8%'),
+    color: '#FFFFFF',
+    fontFamily: PoppinsFonts.SemiBold,
+  },
+  // Appointment Details Card Styles
+  appointmentDetailsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp('4%'),
+    padding: wp('4%'),
+    marginBottom: hp('2%'),
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  appointmentDetailsCardHeader: {
+    marginBottom: hp('2%'),
+    paddingBottom: hp('1%'),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  appointmentDetailsCardTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  appointmentDetailsCardTitle: {
+    fontSize: wp('4.5%'),
+    color: '#0D6EFD',
+    fontFamily: PoppinsFonts.Bold,
+    marginLeft: wp('2%'),
+  },
+  appointmentDetailsGrid: {
+    gap: hp('1.5%'),
+  },
+  appointmentDetailsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: hp('1%'),
+    paddingHorizontal: wp('2%'),
+    backgroundColor: '#F8F9FA',
+    borderRadius: wp('2%'),
+    borderLeftWidth: 3,
+    borderLeftColor: '#0D6EFD',
+  },
+  appointmentDetailsItemFull: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: hp('1%'),
+    paddingHorizontal: wp('2%'),
+    backgroundColor: '#F8F9FA',
+    borderRadius: wp('2%'),
+    borderLeftWidth: 3,
+    borderLeftColor: '#0D6EFD',
+  },
+  appointmentDetailsIconContainer: {
+    width: wp('8%'),
+    height: wp('8%'),
+    borderRadius: wp('4%'),
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: wp('3%'),
+  },
+  appointmentDetailsContent: {
+    flex: 1,
+  },
+  appointmentDetailsLabel: {
+    fontSize: wp('3.2%'),
+    color: '#666666',
+    fontFamily: PoppinsFonts.Regular,
+    marginBottom: hp('0.3%'),
+  },
+  appointmentDetailsValue: {
+    fontSize: wp('3.8%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.SemiBold,
+    lineHeight: wp('4.5%'),
+  },
+  // Feedback Form Styles
+  feedbackCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: wp('4%'),
+    padding: wp('2%'),
+   // marginHorizontal: wp('4%'),
+    marginBottom: hp('2%'),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  feedbackTitle: {
+    fontSize: wp('4.5%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.Bold,
+    textAlign: 'center',
+    marginBottom: hp('2%'),
+  },
+  ratingSection: {
+    marginBottom: hp('2%'),
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp('1.5%'),
+    paddingVertical: hp('0.5%'),
+  },
+  ratingLabel: {
+    fontSize: wp('4%'),
+    color: '#333333',
+    fontFamily: PoppinsFonts.SemiBold,
+    flex: 1,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  starButton: {
+    padding: wp('1%'),
+    marginHorizontal: wp('0.5%'),
+  },
+  submitButton: {
+    backgroundColor: '#0D6EFD',
+    borderRadius: wp('2%'),
+    paddingVertical: hp('1.5%'),
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#6C757D',
+  },
+  submitButtonText: {
+    fontSize: wp('4%'),
+    color: '#FFFFFF',
+    fontFamily: PoppinsFonts.Bold,
+  },
+  submittedReviewInfo: {
+    backgroundColor: '#E8F5E8',
+    borderRadius: wp('2%'),
+    padding: wp('3%'),
+    marginBottom: hp('2%'),
+    borderLeftWidth: 3,
+    borderLeftColor: '#28a745',
+  },
+  submittedReviewText: {
+    fontSize: wp('3.5%'),
+    color: '#28a745',
+    fontFamily: PoppinsFonts.SemiBold,
+    textAlign: 'center',
   },
 });
 

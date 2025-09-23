@@ -115,7 +115,10 @@ const OTPScreen = () => {
           text2: data.message || 'OTP verified successfully!',
           visibilityTime: 1000,
           onHide: () => {
-            navigation.navigate('MainApp');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainApp' }],
+            });
           },
         });
       } else {

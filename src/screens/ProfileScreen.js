@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -50,29 +51,12 @@ const ProfileScreen = ({ navigation }) => {
     loadUserData();
   }, [patientId]);
 
-  // Only refresh data when screen comes into focus if we don't have complete data and haven't tried fetching yet
+  // Refresh data when screen comes into focus to ensure we have the latest data
   useFocusEffect(
     React.useCallback(() => {
-      const hasCompleteData = userState.patientData && 
-        userState.patientData.name && 
-        userState.patientData.email && 
-        userState.patientData.gender;
-      
-      // For new users, check if we have at least basic data (phone number)
-      const hasBasicData = userState.patientData && 
-        (userState.patientData.phone_number || userState.patientData.phone);
-      
-      if (!hasCompleteData && !hasTriedFetching && hasBasicData) {
-        console.log('🔄 Profile screen focused - fetching profile for new user...');
+      console.log('🔄 Profile screen focused - refreshing data...');
         loadUserData();
-      } else if (hasCompleteData) {
-        console.log('✅ Profile screen focused - data already complete, skipping refresh');
-      } else if (!hasBasicData) {
-        console.log('⚠️ Profile screen focused - no basic data available, skipping fetch');
-      } else {
-        console.log('✅ Profile screen focused - already tried fetching, skipping');
-      }
-    }, [userState.patientData, hasTriedFetching])
+    }, [])
   );
 
   // Sync form fields when Redux patient data changes
@@ -115,15 +99,8 @@ const ProfileScreen = ({ navigation }) => {
         console.log('🔄 Using patientId from OTP response:', currentPatientId);
       }
 
-      // Check if we already have complete patient data
-      const hasCompleteData = userState.patientData && 
-        userState.patientData.name && 
-        userState.patientData.email && 
-        userState.patientData.gender;
-      
-      if (hasCompleteData) {
-        console.log('✅ Patient data already complete, skipping API call');
-      } else if (currentPatientId) {
+      // Always fetch fresh data from API to ensure we have the latest information
+      if (currentPatientId) {
         console.log('🔄 Fetching fresh profile data from API...');
         // Fetch user profile from API via Redux - pass patientId explicitly
         await dispatch(fetchUserProfile(currentPatientId));
@@ -257,7 +234,13 @@ const ProfileScreen = ({ navigation }) => {
           [
             {
               text: 'OK',
-              onPress: () => setIsEditing(false)
+              onPress: () => {
+                setIsEditing(false);
+                // Refresh the data to ensure UI shows updated values
+                loadUserData();
+                // Go back to the previous screen (MainApp)
+                navigation.goBack();
+              }
             }
           ]
         );
@@ -296,7 +279,7 @@ const ProfileScreen = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+        <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
@@ -306,10 +289,15 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={handleBackPress}
@@ -320,7 +308,7 @@ const ProfileScreen = ({ navigation }) => {
         <TouchableOpacity onPress={handleEdit}>
           <Icon name="edit" size={18} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <KeyboardAvoidingView 
         style={styles.keyboardAvoidingView}
@@ -464,7 +452,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: wp('5%'),
     paddingVertical: hp('2%'),
-    backgroundColor: '#0D6EFD',
     borderBottomLeftRadius: wp('4%'),
     borderBottomRightRadius: wp('4%'),
   },

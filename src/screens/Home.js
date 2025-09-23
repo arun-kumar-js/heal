@@ -265,7 +265,7 @@ console.log("doctors", doctors);
   if (loading && doctors.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+        <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
         <View style={styles.container}>
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>Loading doctors...</Text>
@@ -277,14 +277,19 @@ console.log("doctors", doctors);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           scrollEnabled={activeFilter === 'All'}
         >
-          <View style={styles.header}>
+          <LinearGradient
+            colors={['#1A83FF', '#003784']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.header}
+          >
             <View style={styles.headerTop}>
               <Image
                 source={{
@@ -320,7 +325,7 @@ console.log("doctors", doctors);
                 pointerEvents="none"
               />
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
 
           <View style={styles.mainContent}>
             <View style={styles.firstCard}>
@@ -578,7 +583,7 @@ console.log("doctors", doctors);
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0D6EFD',
+    backgroundColor: '#1A83FF',
   },
   container: {
     flex: 1,
@@ -588,7 +593,6 @@ const styles = StyleSheet.create({
     paddingBottom: hp('10%'),
   },
   header: {
-    backgroundColor: '#0D6EFD',
     paddingHorizontal: wp('5%'),
     paddingTop: hp('2%'),
     paddingBottom: hp('2%'),

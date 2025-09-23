@@ -11,15 +11,21 @@ import { PAYMENT_UPDATE_URL, basicAuth } from '../config/config.js';
  */
 export const updatePaymentStatus = async (paymentData) => {
   try {
-    console.log('=== PAYMENT UPDATE API CALL DEBUG ===');
-    console.log('API URL:', PAYMENT_UPDATE_URL);
-    console.log('Payment Data:', paymentData);
-    console.log('Basic Auth:', basicAuth);
+    console.log('💳 PAYMENT UPDATE API CALL DEBUG ===');
+    console.log('💳 API URL:', PAYMENT_UPDATE_URL);
+    console.log('💳 Full Payment Data Received:', JSON.stringify(paymentData, null, 2));
+    console.log('💳 Basic Auth:', basicAuth);
 
     // Validate required fields
     const { appointment_details, payment_status, payment_mode } = paymentData;
     
+    console.log('💳 Extracted Fields:');
+    console.log('💳 - appointment_details:', JSON.stringify(appointment_details, null, 2));
+    console.log('💳 - payment_status:', payment_status);
+    console.log('💳 - payment_mode:', payment_mode);
+    
     if (!appointment_details || !appointment_details.appointment_detail_id) {
+      console.error('❌ PAYMENT API - Missing appointment_detail_id');
       return {
         success: false,
         data: null,
@@ -28,6 +34,7 @@ export const updatePaymentStatus = async (paymentData) => {
     }
 
     if (!payment_status) {
+      console.error('❌ PAYMENT API - Missing payment_status');
       return {
         success: false,
         data: null,
@@ -36,6 +43,7 @@ export const updatePaymentStatus = async (paymentData) => {
     }
 
     if (!payment_mode) {
+      console.error('❌ PAYMENT API - Missing payment_mode');
       return {
         success: false,
         data: null,
@@ -50,13 +58,30 @@ export const updatePaymentStatus = async (paymentData) => {
       payment_mode: payment_mode.toLowerCase(),
     };
 
-    console.log('🔄 Updating payment status...');
-    console.log('📋 PAYMENT API - Passing data:', JSON.stringify(requestData, null, 2));
-    console.log('🔍 PAYMENT API - Appointment detail ID:', requestData.appointment_detail_id);
-    console.log('🔍 PAYMENT API - Payment status:', requestData.payment_status);
-    console.log('🔍 PAYMENT API - Payment mode:', requestData.payment_mode);
+    console.log('💳 PAYMENT API - Request Data Preparation:');
+    console.log('💳 - Original appointment_details:', appointment_details);
+    console.log('💳 - Extracted appointment_detail_id:', appointment_details.appointment_detail_id);
+    console.log('💳 - Original payment_status:', payment_status);
+    console.log('💳 - Lowercased payment_status:', payment_status.toLowerCase());
+    console.log('💳 - Original payment_mode:', payment_mode);
+    console.log('💳 - Lowercased payment_mode:', payment_mode.toLowerCase());
+    
+    console.log('💳 PAYMENT API - Final Request Data:');
+    console.log('💳 - Complete requestData:', JSON.stringify(requestData, null, 2));
+    console.log('💳 - appointment_details (ID):', requestData.appointment_details);
+    console.log('💳 - payment_status:', requestData.payment_status);
+    console.log('💳 - payment_mode:', requestData.payment_mode);
 
     // Make API request using GET with query parameters
+    console.log('💳 PAYMENT API - Making API Request:');
+    console.log('💳 - URL:', PAYMENT_UPDATE_URL);
+    console.log('💳 - Method: GET');
+    console.log('💳 - Query Parameters:', requestData);
+    console.log('💳 - Headers:', {
+      'Content-Type': 'application/json',
+      'Authorization': basicAuth
+    });
+    
     const response = await axios.get(PAYMENT_UPDATE_URL, {
       params: requestData,
       headers: {
@@ -67,10 +92,10 @@ export const updatePaymentStatus = async (paymentData) => {
     });
 
     const data = response.data;
-    console.log('=== PAYMENT UPDATE API RESPONSE ===');
-    console.log('Status:', response.status);
-    console.log('Headers:', response.headers);
-    console.log('Data:', data);
+    console.log('✅ PAYMENT UPDATE API RESPONSE ===');
+    console.log('✅ Status Code:', response.status);
+    console.log('✅ Response Headers:', response.headers);
+    console.log('✅ Response Data:', JSON.stringify(data, null, 2));
 
     return {
       success: data.status === true || response.status === 200,
@@ -137,6 +162,11 @@ export const updatePaymentStatus = async (paymentData) => {
 export const validatePaymentData = (paymentData) => {
   const { appointment_details, payment_status, payment_mode } = paymentData;
   const errors = [];
+  
+  console.log('🔍 PAYMENT VALIDATION DEBUG:');
+  console.log('🔍 - payment_mode received:', payment_mode);
+  console.log('🔍 - payment_mode type:', typeof payment_mode);
+  console.log('🔍 - payment_mode lowercase:', payment_mode?.toLowerCase());
 
   // Appointment detail ID validation
   if (!appointment_details || !appointment_details.appointment_detail_id) {
@@ -157,9 +187,9 @@ export const validatePaymentData = (paymentData) => {
   if (!payment_mode) {
     errors.push('Payment mode is required');
   } else {
-    const validModes = ['cash', 'card', 'upi', 'netbanking', 'wallet'];
+    const validModes = ['cash', 'upi', 'credit_card', 'net_banking', 'card', 'netbanking', 'wallet'];
     if (!validModes.includes(payment_mode.toLowerCase())) {
-      errors.push('Invalid payment mode');
+      errors.push(`Invalid payment mode: ${payment_mode}. Valid modes are: ${validModes.join(', ')}`);
     }
   }
 

@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -66,13 +67,40 @@ const Appointment = ({ navigation }) => {
         throw new Error('Patient ID not found in user data.');
       }
       
-      console.log('Calling appointment API with patient ID:', patientId);
+      console.log('📅 APPOINTMENT API - Calling appointment API with patient ID:', patientId);
       const response = await getAppointmentBookingDetailsFromStorage();
       
-      console.log('API Response:', response);
+      console.log('📅 APPOINTMENT API - Raw Response:', JSON.stringify(response, null, 2));
+      console.log('📅 APPOINTMENT API - Response Success:', response.success);
+      console.log('📅 APPOINTMENT API - Response Status:', response.status);
+      console.log('📅 APPOINTMENT API - Response Message:', response.message);
       
       if (response.success) {
-        console.log('Appointment details loaded successfully:', response.data);
+        console.log('✅ APPOINTMENT API - Success! Data received:');
+        console.log('✅ APPOINTMENT API - Data type:', typeof response.data);
+        console.log('✅ APPOINTMENT API - Is array:', Array.isArray(response.data));
+        console.log('✅ APPOINTMENT API - Data length:', response.data?.length);
+        console.log('✅ APPOINTMENT API - Full data:', JSON.stringify(response.data, null, 2));
+        
+        // Log each appointment individually
+        if (Array.isArray(response.data)) {
+          response.data.forEach((appointment, index) => {
+            console.log(`📅 APPOINTMENT ${index + 1} DETAILS:`);
+            console.log(`📅 - ID: ${appointment.id}`);
+            console.log(`📅 - Appointment ID: ${appointment.appointment_id}`);
+            console.log(`📅 - Status: ${appointment.status}`);
+            console.log(`📅 - Payment Status: ${appointment.payment_status}`);
+            console.log(`📅 - Payment Amount: ${appointment.payment_amount}`);
+            console.log(`📅 - Payment Mode: ${appointment.payment_mode}`);
+            console.log(`📅 - Doctor: ${appointment.appointment?.doctor?.name || 'N/A'}`);
+            console.log(`📅 - Hospital: ${appointment.appointment?.clinic?.name || 'N/A'}`);
+            console.log(`📅 - Patient: ${appointment.appointment?.patient?.name || 'N/A'}`);
+            console.log(`📅 - Date: ${appointment.appointment?.appointment_date || 'N/A'}`);
+            console.log(`📅 - Time: ${appointment.appointment?.appointment_time || 'N/A'}`);
+            console.log(`📅 - Full Appointment Object:`, JSON.stringify(appointment, null, 2));
+          });
+        }
+        
         setAppointments(response.data);
         
         // Format the data for display
@@ -90,7 +118,9 @@ const Appointment = ({ navigation }) => {
           setError(null); // Clear any previous errors
         }
       } else {
-        console.error('API call failed:', response);
+        console.error('❌ APPOINTMENT API - API call failed:', response);
+        console.error('❌ APPOINTMENT API - Error details:', JSON.stringify(response, null, 2));
+        
         // Check if it's a "no appointments" response (404 or specific messages)
         if (response.status === 404 || 
             (response.message && (
@@ -98,7 +128,7 @@ const Appointment = ({ navigation }) => {
               response.message.includes('No appointments') || 
               response.message.includes('not found')
             ))) {
-          console.log('No appointments found - showing empty state instead of error');
+          console.log('📅 APPOINTMENT API - No appointments found - showing empty state instead of error');
           setError(null);
           setFormattedData({
             appointments: [],
@@ -108,6 +138,7 @@ const Appointment = ({ navigation }) => {
           });
         } else {
           // It's a real error
+          console.error('❌ APPOINTMENT API - Real error occurred:', response.message);
           setError(response.message || 'Failed to load appointment details');
         }
       }
@@ -219,14 +250,17 @@ const Appointment = ({ navigation }) => {
                       appointment.doctor_name || 
                       appointmentData.doctor_name ||
                       'Dr. Unknown';
-    const doctorSpecialty = doctorData?.specialization_id ? 
-      getSpecializationName(doctorData.specialization_id) : 
-      (doctorData?.specialization || 
-       appointment.specialization ||
-       appointmentData.specialization ||
-       'General Medicine');
     
-    // Get clinic name
+    // Get doctor specialization/category - prioritize the nested specialization object
+    const doctorSpecialty = doctorData?.specialization?.name || 
+      (doctorData?.specialization_id ? 
+        getSpecializationName(doctorData.specialization_id) : 
+        (doctorData?.specialization || 
+         appointment.specialization ||
+         appointmentData.specialization ||
+         'General Medicine'));
+    
+    // Get clinic/hospital name
     const clinicName = clinicData?.name || 'Clinic';
     
     // Get patient name (main patient or sub-patient)
@@ -280,39 +314,55 @@ const Appointment = ({ navigation }) => {
         style={styles.appointmentCard}
         onPress={() => navigation.navigate('AppointmentDetails', { appointment })}
       >
-        <View style={styles.appointmentInfo}>
+        {/* Header Section with Doctor Info */}
+        <View style={styles.cardHeader}>
           <View style={styles.doctorImageContainer}>
             <Image 
               source={{ uri: doctorImage }} 
               style={styles.doctorImage} 
             />
           </View>
-          <View style={styles.appointmentDetails}>
+          <View style={styles.doctorInfoSection}>
             <Text style={styles.doctorName}>{doctorName}</Text>
             <Text style={styles.doctorSpecialty}>{doctorSpecialty}</Text>
-            <Text style={styles.appointmentDate}>{appointmentDate}</Text>
-            <Text style={styles.appointmentTime}>{appointmentTime}</Text>
-            
-            <View style={styles.statusContainer}>
-              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                <Text style={styles.statusText}>{statusText}</Text>
-              </View>
-              {paymentStatus && (
-                <View style={[styles.paymentBadge, { 
-                  backgroundColor: paymentInfo.color
-                }]}>
-                  <Text style={styles.paymentText}>
-                    {paymentInfo.text}
-                  </Text>
-                </View>
-              )}
+            <Text style={styles.hospitalName}>{clinicName}</Text>
+          </View>
+          <View style={styles.statusSection}>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+              <Text style={styles.statusText}>{statusText}</Text>
             </View>
+            {paymentStatus && (
+              <View style={[styles.paymentBadge, { 
+                backgroundColor: paymentInfo.color
+              }]}>
+                <Text style={styles.paymentText}>
+                  {paymentInfo.text}
+                </Text>
+              </View>
+            )}
+            {token && (
+              <View style={styles.tokenRow}>
+                <Icon name="ticket-alt" size={12} color="#0D6EFD" style={styles.detailIcon} />
+                <Text style={styles.tokenText}>Token: {token}</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-      <TouchableOpacity style={styles.navigateButton}>
-        <Icon name="chevron-right" size={16} color="#FFFFFF" />
+
+        {/* Details Section */}
+        <View style={styles.cardDetails}>
+          <View style={styles.dateTimeRow}>
+            <View style={styles.dateTimeItem}>
+              <Icon name="calendar-alt" size={14} color="#666" style={styles.detailIcon} />
+              <Text style={styles.appointmentDate}>{appointmentDate}</Text>
+            </View>
+            <View style={styles.dateTimeItem}>
+              <Icon name="clock" size={14} color="#0D6EFD" style={styles.detailIcon} />
+              <Text style={styles.appointmentTime}>{appointmentTime}</Text>
+            </View>
+          </View>
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
     );
   };
 
@@ -361,10 +411,15 @@ const Appointment = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -373,7 +428,7 @@ const Appointment = ({ navigation }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Appointment Details</Text>
         <View style={styles.headerRight} />
-      </View>
+      </LinearGradient>
 
       {/* Content */}
       <ScrollView 
@@ -396,21 +451,6 @@ const Appointment = ({ navigation }) => {
           renderEmptyState()
         ) : (
           <>
-            {/* Summary Cards */}
-            <View style={styles.summaryContainer}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryNumber}>{formattedData.totalAppointments}</Text>
-                <Text style={styles.summaryLabel}>Total Appointments</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryNumber}>{formattedData.upcomingAppointments.length}</Text>
-                <Text style={styles.summaryLabel}>Upcoming</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryNumber}>{formattedData.completedAppointments.length}</Text>
-                <Text style={styles.summaryLabel}>Completed</Text>
-              </View>
-            </View>
 
             {/* Filter Buttons */}
             <View style={styles.filterContainer}>
@@ -520,7 +560,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#0D6EFD',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -577,14 +616,14 @@ const styles = StyleSheet.create({
   doctorName: {
     fontSize: wp('4.5%'),
     color: '#333333',
-    marginBottom: hp('0.5%'),
+    marginBottom: hp('0.3%'),
     fontFamily: PoppinsFonts.Bold,
   },
   doctorSpecialty: {
-    fontSize: wp('3.5%'),
-    color: '#666666',
-    marginBottom: hp('1%'),
-    fontFamily: 'Poppins-Regular',
+    fontSize: wp('3.2%'),
+    color: '#0D6EFD',
+    marginBottom: hp('0.3%'),
+    fontFamily: PoppinsFonts.SemiBold,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -694,39 +733,44 @@ const styles = StyleSheet.create({
   },
   appointmentCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: wp('3%'),
+    borderRadius: wp('4%'),
     padding: wp('4%'),
     marginBottom: hp('2%'),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 2,
+    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
-  appointmentInfo: {
+  cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    alignItems: 'flex-start',
+    marginBottom: hp('1.5%'),
+  },
+  cardDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: hp('1.5%'),
   },
   doctorImageContainer: {
     marginRight: wp('4%'),
   },
-  appointmentDetails: {
+  doctorInfoSection: {
     flex: 1,
+    marginRight: wp('2%'),
+  },
+  statusSection: {
+    alignItems: 'flex-end',
   },
   appointmentDate: {
     fontSize: wp('3.5%'),
     color: '#666666',
-    marginBottom: hp('0.3%'),
+    marginRight: wp('3%'),
     fontFamily: 'Poppins-Regular',
   },
   appointmentTime: {
     fontSize: wp('3.5%'),
     color: '#0D6EFD',
-    marginBottom: hp('1%'),
     fontFamily: PoppinsFonts.SemiBold,
   },
   statusContainer: {
@@ -735,25 +779,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   statusBadge: {
-    paddingHorizontal: wp('3%'),
-    paddingVertical: hp('0.5%'),
-    borderRadius: wp('2%'),
-    marginRight: wp('2%'),
+    paddingHorizontal: wp('2.5%'),
+    paddingVertical: hp('0.4%'),
+    borderRadius: wp('1.5%'),
     marginBottom: hp('0.5%'),
   },
   statusText: {
-    fontSize: wp('3%'),
+    fontSize: wp('2.8%'),
     color: '#FFFFFF',
     fontFamily: PoppinsFonts.SemiBold,
   },
   paymentBadge: {
-    paddingHorizontal: wp('2.5%'),
+    paddingHorizontal: wp('2%'),
     paddingVertical: hp('0.3%'),
-    borderRadius: wp('1.5%'),
-    marginBottom: hp('0.5%'),
+    borderRadius: wp('1.2%'),
   },
   paymentText: {
-    fontSize: wp('2.5%'),
+    fontSize: wp('2.3%'),
     color: '#FFFFFF',
     fontFamily: PoppinsFonts.SemiBold,
   },
@@ -770,11 +812,35 @@ const styles = StyleSheet.create({
     marginTop: hp('0.3%'),
     fontFamily: PoppinsFonts.SemiBold,
   },
-  clinicName: {
-    fontSize: wp('3.2%'),
+  hospitalName: {
+    fontSize: wp('3%'),
     color: '#666666',
-    marginBottom: hp('0.3%'),
     fontFamily: 'Poppins-Regular',
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp('1%'),
+    gap: wp('2%'),
+  },
+  dateTimeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: wp('3%'),
+    paddingVertical: hp('1%'),
+    backgroundColor: '#f8f9fa',
+    borderRadius: wp('2%'),
+    marginHorizontal: wp('1%'),
+  },
+  tokenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: hp('0.5%'),
+    justifyContent: 'flex-end',
+  },
+  detailIcon: {
+    marginRight: wp('2%'),
   },
   patientName: {
     fontSize: wp('3%'),
@@ -783,9 +849,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
   },
   tokenText: {
-    fontSize: wp('3%'),
+    fontSize: wp('2.5%'),
     color: '#0D6EFD',
-    marginBottom: hp('0.5%'),
     fontFamily: PoppinsFonts.SemiBold,
   },
   paymentDetails: {

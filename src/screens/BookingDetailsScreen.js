@@ -321,37 +321,26 @@ const BookingDetailsScreen = ({ navigation, route }) => {
       const result = await dispatch(bookAppointment(appointmentData)).unwrap();
 
       if (result) {
-        Toast.show({
-          type: 'success',
-          text1: 'Success!',
-          text2: 'Appointment booked successfully!',
-          visibilityTime: 2000,
-          onHide: () => {
-            // Navigate to booking confirm screen after toast hides
-            navigation.navigate('BookingConfirm', {
-              appointmentData: result,
-              doctor: doctor,
-              selectedDate: selectedDate,
-              selectedTime: selectedTime,
-              selectedTimeSlot: selectedTimeSlot,
-              reason: reasonForVisit,
-              token: randomToken,
-              personalInfo: {
-                fullName,
-                mobileNumber,
-                email
-              }
-            });
-          },
+        console.log('Appointment booked successfully:', result);
+        // Navigate to booking confirm screen
+        navigation.navigate('BookingConfirm', {
+          appointmentData: result,
+          doctor: doctor,
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+          selectedTimeSlot: selectedTimeSlot,
+          reason: reasonForVisit,
+          token: randomToken,
+          personalInfo: {
+            fullName,
+            mobileNumber,
+            email
+          }
         });
       }
     } catch (error) {
       console.error('Booking error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: error.message || 'Something went wrong. Please try again.',
-      });
+      console.log('Error details:', error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }

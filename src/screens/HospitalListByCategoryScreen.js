@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -172,10 +173,15 @@ const HospitalListByCategoryScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -188,7 +194,7 @@ const HospitalListByCategoryScreen = ({ navigation, route }) => {
             <Text style={styles.headerSubtitle}>Select the Hospital</Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -245,8 +251,8 @@ const HospitalListByCategoryScreen = ({ navigation, route }) => {
                 <View style={styles.imageOverlay}>
                   <View style={styles.hospitalInfo}>
                     <View style={styles.hospitalDetails}>
-                      <Text style={styles.hospitalName}>{hospital.name || 'Unknown Hospital'}</Text>
-                      <Text style={styles.hospitalType}>{getHospitalType(hospital)}</Text>
+                      <Text style={styles.hospitalName}>{hospital.name }</Text>
+                    
                       <View style={styles.ratingContainer}>
                         <View style={styles.starsContainer}>
                           {renderStars(hospital.rating)}
@@ -280,7 +286,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: '#0D6EFD',
     paddingTop: Platform.OS === 'ios' ? 0 : 0,
     paddingBottom: hp('9%'),
     position: 'relative',

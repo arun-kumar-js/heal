@@ -14,8 +14,10 @@ import {
   Modal,
   ImageBackground,
   KeyboardAvoidingView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -26,6 +28,8 @@ import { APPOINTMENT_FETCH_URL, basicAuth } from '../config/config';
 import { storeUserDetail, formatAppointmentData } from '../services/bookingApi';
 import { getOTPResponse } from '../utils/otpStorage';
 import { PoppinsFonts, FontStyles } from '../config/fonts';
+import { getHospitalDetails } from '../services/hospitalDetailsApi';
+import { getDoctorDetails } from '../services/doctorDetailsApi';
 
 const DoctorAppointmentScreen = ({ navigation, route }) => {
   const { doctor, hospitalName } = route.params || {};
@@ -41,11 +45,10 @@ const DoctorAppointmentScreen = ({ navigation, route }) => {
     email: '',
     patient_id: null
   });
-
-  // Debug userData changes
-  useEffect(() => {
-    console.log('📱 USER DATA UPDATED:', JSON.stringify(userData, null, 2));
-  }, [userData]);
+  const [hospitalInfo, setHospitalInfo] = useState(null);
+  const [hospitalLoading, setHospitalLoading] = useState(false);
+  const [doctorDetails, setDoctorDetails] = useState(null);
+  const [doctorDetailsLoading, setDoctorDetailsLoading] = useState(false);
   const [showReasonError, setShowReasonError] = useState(false);
   
   // Initialize selectedDate with current date when component mounts
@@ -62,6 +65,24 @@ const DoctorAppointmentScreen = ({ navigation, route }) => {
   useEffect(() => {
     loadPatientId();
   }, []);
+
+  // Fetch hospital details when component mounts (only if not passed via params)
+  useEffect(() => {
+    if (doctor?.clinic_id && !hospitalName) {
+      fetchHospitalDetails();
+    } else if (hospitalName) {
+      // Use hospital name from params
+      setHospitalInfo({ name: hospitalName });
+    }
+  }, [doctor?.clinic_id, hospitalName]);
+
+  // Fetch doctor details when component mounts
+  useEffect(() => {
+    const currentDoctorId = doctor?.id || doctorData?.id;
+    if (currentDoctorId) {
+      fetchDoctorDetails();
+    }
+  }, [doctor?.id, doctorData?.id]);
 
   const loadPatientId = async () => {
     try {
@@ -91,15 +112,59 @@ const DoctorAppointmentScreen = ({ navigation, route }) => {
       console.error('❌ Error loading patient ID for appointment:', error);
     }
   };
+
+  // Fetch hospital details using clinic_id
+  const fetchHospitalDetails = async () => {
+    if (!doctor?.clinic_id) {
+      console.log('❌ No clinic_id found for doctor');
+      return;
+    }
+
+    setHospitalLoading(true);
+    try {
+      console.log('🏥 Fetching hospital details for clinic_id:', doctor.clinic_id);
+      const response = await getHospitalDetails(doctor.clinic_id);
+      
+      if (response.success && response.data) {
+        console.log('✅ Hospital details fetched successfully:', response.data);
+        setHospitalInfo(response.data);
+      } else {
+        console.error('❌ Failed to fetch hospital details:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching hospital details:', error);
+    } finally {
+      setHospitalLoading(false);
+    }
+  };
+
+  // Fetch doctor details using doctor_id
+  const fetchDoctorDetails = async () => {
+    const currentDoctorId = doctor?.id || doctorData?.id;
+    if (!currentDoctorId) {
+      return;
+    }
+
+    setDoctorDetailsLoading(true);
+    try {
+      const response = await getDoctorDetails(currentDoctorId);
+      
+      if (response.success && response.data) {
+        setDoctorDetails(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor details:', error);
+    } finally {
+      setDoctorDetailsLoading(false);
+    }
+  };
+
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 const [doctorData, setDoctorData] = useState(doctor);
-console.log('doctorData', doctorData);
 const doctor_id = doctorData?.id;
-console.log ('doctor_id', doctor_id);
 const clinic_id = doctorData?.clinic_id;
-console.log('clinic_id', clinic_id);
 
   // Generate calendar dates
   const generateCalendarDates = () => {
@@ -642,7 +707,7 @@ console.log('clinic_id', clinic_id);
       return { uri: `https://spiderdesk.asia/healto/${doctor.profile_image}` };
     }
     return { 
-      uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor?.name || 'Dr. Aishwarya')}&size=300&background=ff6b6b&color=fff`
+      uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor?.name )}&size=300&background=ff6b6b&color=fff`
     };
   };
 
@@ -674,22 +739,21 @@ console.log('clinic_id', clinic_id);
 
   // Helper function to get doctor statistics
   const getDoctorStats = (doctor) => {
-    // Use experience_years directly from API response
-    const experience = doctor?.experience_years || 2;
+    // Use doctor details data if available, otherwise fallback to doctor prop
+    const doctorData = doctorDetails?.doctor_details || doctor;
     
-    // Calculate reviews based on rating or use default
-    // Since the API shows reviews as a string, we'll calculate from rating
-    const reviews = doctor?.rating ? Math.floor(doctor.rating * 40) : 200;
+    // Get experience from doctor details
+    const experience = doctorData?.experience_years || doctor?.experience_years || 1;
     
-    // Calculate patients based on experience and rating
-    // More experienced doctors with higher ratings likely have more patients
-    const patients = doctor?.experience_years && doctor?.rating 
-      ? Math.floor(doctor.experience_years * doctor.rating * 20)
-      : 400;
+    // Get reviews count from doctor details
+    const reviews = doctorDetails?.reviews_count || doctorData?.reviews_count || 0;
+    
+    // Get patients count from doctor details
+    const patients = doctorDetails?.patients_count || doctorData?.patients_count || 0;
     
     return {
-      reviews: Math.max(reviews, 50), // Minimum 50 reviews
-      patients: Math.max(patients, 100), // Minimum 100 patients
+      reviews: Math.max(reviews, 0), // Use actual count or 0
+      patients: Math.max(patients, 0), // Use actual count or 0
       experience: Math.max(experience, 1) // Minimum 1 year experience
     };
   };
@@ -755,6 +819,22 @@ console.log('clinic_id', clinic_id);
 
 
 
+  // Handle call button press
+  const handleCallButton = () => {
+    const phoneNumber = doctorDetails?.clinic_phone || doctorDetails?.doctor_details?.clinic?.phone || hospitalInfo?.phone;
+    
+    if (phoneNumber) {
+      const phoneUrl = `tel:${phoneNumber}`;
+      
+      Linking.openURL(phoneUrl).catch(err => {
+        console.error('Error opening phone dialer:', err);
+        Alert.alert('Error', 'Unable to open phone dialer');
+      });
+    } else {
+      Alert.alert('No Phone Number', 'Phone number not available');
+    }
+  };
+
   const handleScheduleAppointment = () => {
     // Reset error states
     setShowReasonError(false);
@@ -819,15 +899,24 @@ console.log('clinic_id', clinic_id);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
-      {/* Back Button */}
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
       >
-        <Icon name="arrow-left" size={20} color="#FFFFFF" />
-      </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-left" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Book Appointment</Text>
+        <View style={styles.headerRight} />
+      </LinearGradient>
 
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
@@ -848,21 +937,39 @@ console.log('clinic_id', clinic_id);
             {/* Doctor Info Overlay */}
             <View style={styles.doctorInfoOverlay}>
               <View style={styles.doctorDetails}>
-                <Text style={styles.doctorName}>{doctor?.name }</Text>
-                <Text style={styles.doctorSpecialty}>
-                  {getDoctorSpecialty(doctor)} 
+                <Text style={styles.doctorName}>
+                  {doctorDetails?.doctor_details?.name || doctor?.name}
                 </Text>
+
+                <Text style={styles.doctorSpecialty}>
+                  {doctorDetails?.doctor_details?.specialization?.name || getDoctorSpecialty(doctor)}
+                </Text>
+                
+                {/* Hospital Name */}
+                {hospitalLoading ? (
+                  <Text style={styles.hospitalName}>Loading hospital...</Text>
+                ) : doctorDetails?.doctor_details?.clinic?.name ? (
+                  <Text style={styles.hospitalName}>{doctorDetails.doctor_details.clinic.name}</Text>
+                ) : hospitalInfo?.name ? (
+                  <Text style={styles.hospitalName}>{hospitalInfo.name}</Text>
+                ) : null}
+                
                 <View style={styles.ratingContainer}>
                   <View style={styles.starsContainer}>
-                    {renderStars(doctor?.rating || 4.5)}
+                    {renderStars(doctorDetails?.doctor_details?.reviews_avg_rating || doctor?.rating)}
                   </View>
-                  <Text style={styles.ratingText}>4.5</Text>
+                  <Text style={styles.ratingText}>
+                    {parseFloat(doctorDetails?.doctor_details?.reviews_avg_rating || doctor?.rating || '4.5').toFixed(2)}
+                  </Text>
                 </View>
               </View>
               
-              <TouchableOpacity style={styles.callButton}>
-                <Icon name="phone" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
+    <TouchableOpacity style={styles.callButton} onPress={handleCallButton}>
+      <Image
+        source={require('../Assets/Images/Phone.png')}
+        style={{ width: 20, height: 20, resizeMode: 'contain' }}
+      />
+    </TouchableOpacity>
             </View>
           </ImageBackground>
         </View>
@@ -883,12 +990,24 @@ console.log('clinic_id', clinic_id);
           </View>
         </View>
 
+
         {/* About Section */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>About.</Text>
-          <Text style={styles.aboutText}>
-            {doctor?.name } is a skilled and compassionate {getDoctorSpecialty(doctor).toLowerCase()} specialist with over {getDoctorStats(doctor).experience} years of clinical experience. {doctor?.qualification ? `Qualified with ${doctor.qualification}, ` : ''}{doctor?.info || `Their expertise spans ${getDoctorSpecialty(doctor).toLowerCase()} diagnosis, treatment, and patient care, with a focus on providing comprehensive medical solutions.`}
-          </Text>
+          {doctorDetailsLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#0D6EFD" />
+              <Text style={styles.loadingText}>Loading doctor details...</Text>
+            </View>
+          ) : doctorDetails ? (
+            <Text style={styles.aboutText}>
+              {doctorDetails.doctor_details?.name || doctor?.name} is a skilled and compassionate {doctorDetails.doctor_details?.specialization?.name || getDoctorSpecialty(doctor).toLowerCase()} specialist with over {getDoctorStats(doctor).experience} years of clinical experience. {doctorDetails.doctor_details?.qualification ? `Qualified with ${doctorDetails.doctor_details.qualification}, ` : ''}{doctorDetails.doctor_details?.info || `Their expertise spans ${doctorDetails.doctor_details?.specialization?.name || getDoctorSpecialty(doctor).toLowerCase()} diagnosis, treatment, and patient care, with a focus on providing comprehensive medical solutions.`}
+            </Text>
+          ) : (
+            <Text style={styles.aboutText}>
+              {doctor?.name } is a skilled and compassionate {getDoctorSpecialty(doctor).toLowerCase()} specialist with over {getDoctorStats(doctor).experience} years of clinical experience. {doctor?.qualification ? `Qualified with ${doctor.qualification}, ` : ''}{doctor?.info || `Their expertise spans ${getDoctorSpecialty(doctor).toLowerCase()} diagnosis, treatment, and patient care, with a focus on providing comprehensive medical solutions.`}
+            </Text>
+          )}
         </View>
 
         {/* Calendar Section */}
@@ -1128,12 +1247,27 @@ const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
   },
+  headerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: hp('2%'),
+    paddingBottom: hp('2%'),
+    paddingHorizontal: wp('5%'),
+  },
   backButton: {
-    position: 'absolute',
-    left: wp('5%'),
-    top: hp('6%'),
-    zIndex: 1000,
     padding: wp('2%'),
+    alignSelf: 'flex-start',
+  },
+  headerTitle: {
+    fontSize: wp('5%'),
+    color: '#FFFFFF',
+    fontFamily: PoppinsFonts.Bold,
+    textAlign: 'center',
+    flex: 1,
+  },
+  headerRight: {
+    width: wp('10%'),
   },
   scrollView: {
     flex: 1,
@@ -1188,6 +1322,13 @@ const styles = StyleSheet.create({
    // marginBottom: hp('1%'),
    // opacity: 0.9,
   },
+  hospitalName: {
+    fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Regular,
+    color: '#FFFFFF',
+    opacity: 0.8,
+    marginTop: hp('0.5%'),
+  },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1205,7 +1346,7 @@ const styles = StyleSheet.create({
     width: wp('12%'),
     height: wp('12%'),
     borderRadius: wp('6%'),
-    backgroundColor: '#0D6EFD',
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1276,6 +1417,15 @@ const styles = StyleSheet.create({
     fontFamily: PoppinsFonts.Regular,
     color: '#666',
     lineHeight: wp('5%'),
+  },
+  debugText: {
+    fontSize: wp('2.5%'),
+    fontFamily: PoppinsFonts.Regular,
+    color: '#999',
+    lineHeight: wp('3%'),
+    backgroundColor: '#f8f9fa',
+    padding: wp('3%'),
+    borderRadius: wp('2%'),
   },
   calendarScroll: {
     marginTop: hp('1%'),

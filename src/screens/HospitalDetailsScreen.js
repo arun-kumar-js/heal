@@ -20,6 +20,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { PoppinsFonts } from '../config/fonts';
 import { getDoctorsByClinic } from '../services/doctorsByClinicApi';
+import { getHospitalDetails } from '../services/hospitalDetailsApi';
 
 const HospitalDetailsScreen = ({ navigation, route }) => {
   const { hospital } = route.params || {};
@@ -29,6 +30,38 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
   const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [doctorsError, setDoctorsError] = useState(null);
   const [failedImages, setFailedImages] = useState(new Set());
+  const [hospitalDetails, setHospitalDetails] = useState(null);
+  const [hospitalLoading, setHospitalLoading] = useState(false);
+  const [hospitalError, setHospitalError] = useState(null);
+
+  // Fetch hospital details by ID
+  const loadHospitalDetails = async () => {
+    if (!hospital?.id) {
+      console.log('No hospital ID provided, skipping hospital details fetch');
+      return;
+    }
+
+    try {
+      setHospitalLoading(true);
+      setHospitalError(null);
+      
+      console.log('🏥 HOSPITAL DETAILS - Fetching hospital details for ID:', hospital.id);
+      const result = await getHospitalDetails(hospital.id);
+      
+      if (result.success) {
+        console.log('🏥 HOSPITAL DETAILS - Hospital details loaded successfully:', result.data);
+        setHospitalDetails(result.data);
+      } else {
+        setHospitalError(result.error);
+        console.error('🏥 HOSPITAL DETAILS - Failed to load hospital details:', result.error);
+      }
+    } catch (error) {
+      setHospitalError(error.message);
+      console.error('🏥 HOSPITAL DETAILS - Error loading hospital details:', error);
+    } finally {
+      setHospitalLoading(false);
+    }
+  };
 
   // Fetch doctors by clinic ID
   const loadDoctorsByClinic = async () => {
@@ -64,8 +97,9 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Load doctors when component mounts
+  // Load hospital details and doctors when component mounts
   useEffect(() => {
+    loadHospitalDetails();
     loadDoctorsByClinic();
   }, [hospital?.id]);
 
@@ -214,23 +248,36 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
     };
   }).filter(doctor => doctor !== null); // Remove any null entries
 
+  // Use hospital details from API if available, otherwise fallback to passed hospital object
+  const currentHospital = hospitalDetails?.clinics || hospital;
+
   // Use real hospital data or fallback to default values
   const hospitalData = {
-    name: hospital?.name || 'Hospital',
-    type: hospital?.type || 'hospital',
-    rating: hospital?.rating || '0',
-    info: hospital?.info || 'Hospital information not available',
-    address: hospital?.address || 'Address not available',
-    phone: hospital?.phone || 'Phone not available',
-    email: hospital?.email || 'Email not available',
-    logo: hospital?.logo || null,
+    name: currentHospital?.name || hospital?.name || 'Hospital',
+    type: currentHospital?.type || hospital?.type || 'hospital',
+    rating: currentHospital?.rating || hospital?.rating || '0',
+    info: currentHospital?.info || hospital?.info || 'Hospital information not available',
+    address: currentHospital?.address || hospital?.address || 'Address not available',
+    phone: currentHospital?.phone || hospital?.phone || 'Phone not available',
+    email: currentHospital?.email || hospital?.email || 'Email not available',
+    logo: currentHospital?.logo || hospital?.logo || null,
   };
-
+  
   const statsData = [
-    { number: '2000+', label: 'Reviews' },
-    { number: '400+', label: 'Doctors' },
-    { number: '12+', label: 'Experience' },
+    { number: `${currentHospital?.reviews_count || 0}+`, label: 'Reviews' },
+    { number: `${hospitalDetails?.doctors_count || currentHospital?.doctors_count || 0}+`, label: 'Doctors' },
+    { number: `${currentHospital?.experience || 0}+`, label: 'Experience' },
   ];
+
+  // Debug: Log the hospital objects to see their structure
+  console.log('🏥 HOSPITAL DETAILS - Passed hospital object:', JSON.stringify(hospital, null, 2));
+  console.log('🏥 HOSPITAL DETAILS - Hospital details from API:', JSON.stringify(hospitalDetails, null, 2));
+  console.log('🏥 HOSPITAL DETAILS - Current hospital (used for display):', JSON.stringify(currentHospital, null, 2));
+  console.log('🏥 HOSPITAL DETAILS - Reviews count:', currentHospital?.reviews_count);
+  console.log('🏥 HOSPITAL DETAILS - Doctors count from hospitalDetails:', hospitalDetails?.doctors_count);
+  console.log('🏥 HOSPITAL DETAILS - Doctors count from currentHospital:', currentHospital?.doctors_count);
+  console.log('🏥 HOSPITAL DETAILS - Final doctors count used:', hospitalDetails?.doctors_count || currentHospital?.doctors_count || 0);
+  console.log('🏥 HOSPITAL DETAILS - Experience:', currentHospital?.experience);
 
   const departmentsData = [
     { name: 'Cardiology', icon: require('../Assets/Images/heart.png'), },
@@ -306,7 +353,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#003784" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
  
       

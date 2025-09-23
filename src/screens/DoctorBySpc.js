@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import {
   widthPercentageToDP as wp,
@@ -37,12 +38,12 @@ const DoctorBySpc = ({ navigation, route }) => {
   const isFromHospital = route.params?.fromHospital || false;
   
   // Debug logging
-  console.log('DoctorListByHospitalScreen Debug Info:');
-  console.log('- selectedCategory:', selectedCategory);
-  console.log('- clinicId:', clinicId);
-  console.log('- hospitalName:', hospitalName);
-  console.log('- isFromHospital:', isFromHospital);
-  console.log('- route.params:', route.params);
+  console.log('🔍 DOCTOR BY SPC DEBUG - DoctorListByHospitalScreen Debug Info:');
+  console.log('🔍 DOCTOR BY SPC DEBUG - selectedCategory:', selectedCategory);
+  console.log('🔍 DOCTOR BY SPC DEBUG - clinicId:', clinicId);
+  console.log('🔍 DOCTOR BY SPC DEBUG - hospitalName:', hospitalName);
+  console.log('🔍 DOCTOR BY SPC DEBUG - isFromHospital:', isFromHospital);
+  console.log('🔍 DOCTOR BY SPC DEBUG - route.params:', JSON.stringify(route.params, null, 2));
 
   // Fetch doctors from API when component mounts
   useEffect(() => {
@@ -62,10 +63,11 @@ const DoctorBySpc = ({ navigation, route }) => {
         
         if (result.success) {
           setDoctors(result.data);
-          console.log('Successfully fetched doctors:', result.data.length);
+          console.log('✅ DOCTOR BY SPC DEBUG - Successfully fetched doctors:', result.data.length);
+          console.log('✅ DOCTOR BY SPC DEBUG - Doctors data:', JSON.stringify(result.data, null, 2));
         } else {
           setError(result.error);
-          console.error('Failed to fetch doctors:', result.error);
+          console.error('❌ DOCTOR BY SPC DEBUG - Failed to fetch doctors:', result.error);
         }
       } catch (err) {
         console.error('Error fetching doctors:', err);
@@ -114,12 +116,23 @@ const DoctorBySpc = ({ navigation, route }) => {
   };
 
   const getDoctorSpecialty = (doctor) => {
-    // First try to get specialization name from nested specialization object
+    console.log('🔍 DOCTOR SPECIALTY DEBUG - Doctor object:', JSON.stringify(doctor, null, 2));
+    console.log('🔍 DOCTOR SPECIALTY DEBUG - Selected category from route:', selectedCategory);
+    
+    // PRIORITY 1: If we have a selected category from the route, use that as the specialty
+    // This ensures the displayed specialty matches the category we're viewing
+    if (selectedCategory) {
+      console.log('🔍 DOCTOR SPECIALTY DEBUG - Using selected category as specialty:', selectedCategory);
+      return selectedCategory;
+    }
+    
+    // PRIORITY 2: Try to get specialization name from nested specialization object
     if (doctor.specialization && doctor.specialization.name) {
+      console.log('🔍 DOCTOR SPECIALTY DEBUG - Using specialization.name:', doctor.specialization.name);
       return normalizeSpecialtyName(doctor.specialization.name);
     }
     
-    // Map specialization_id to actual specialty names as fallback
+    // PRIORITY 3: Map specialization_id to actual specialty names as fallback
     const specialtyMap = {
       1: 'Cardiology',
       2: 'Orthopedics', 
@@ -135,16 +148,20 @@ const DoctorBySpc = ({ navigation, route }) => {
     
     // Use specialization_id if available, otherwise fallback to type
     if (doctor.specialization_id) {
-      return specialtyMap[doctor.specialization_id] || 'General Medicine';
+      const mappedSpecialty = specialtyMap[doctor.specialization_id] || 'General Medicine';
+      console.log('🔍 DOCTOR SPECIALTY DEBUG - Using specialization_id:', doctor.specialization_id, '-> mapped to:', mappedSpecialty);
+      return mappedSpecialty;
     }
     
-    // Fallback to type-based mapping
+    // PRIORITY 4: Fallback to type-based mapping
     const typeMap = {
       'hospital': 'Cardiology',
       'clinic': 'General Medicine',
       'multispeciality': 'Multi Specialty'
     };
-    return typeMap[doctor.type] || 'General Medicine';
+    const typeBasedSpecialty = typeMap[doctor.type] || 'General Medicine';
+    console.log('🔍 DOCTOR SPECIALTY DEBUG - Using type-based mapping:', doctor.type, '->', typeBasedSpecialty);
+    return typeBasedSpecialty;
   };
 
   // Filter doctors by search query only (specialization filtering is done by API)
@@ -297,11 +314,16 @@ const DoctorBySpc = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0D6EFD" />
+      <StatusBar barStyle="light-content" backgroundColor="#1A83FF" />
       
       
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#1A83FF', '#003784']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -317,7 +339,7 @@ const DoctorBySpc = ({ navigation, route }) => {
             }
           </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -420,7 +442,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    backgroundColor: '#0D6EFD',
     paddingTop: hp('1%'),
     paddingBottom: hp('10%'),
     position: 'relative',

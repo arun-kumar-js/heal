@@ -9,37 +9,54 @@ import { BASE_URL, basicAuth } from '../config/config.js';
  */
 export const fetchDoctorsBySpecializationClinic = async (specializationName, clinicId) => {
   try {
-    console.log('Fetching doctors by specialization and clinic:', {
-      specializationName,
-      clinicId
-    });
+    console.log('🔍 DOCTORS API DEBUG - Fetching doctors by specialization and clinic:');
+    console.log('🔍 DOCTORS API DEBUG - specializationName:', specializationName);
+    console.log('🔍 DOCTORS API DEBUG - clinicId:', clinicId);
+    console.log('🔍 DOCTORS API DEBUG - API URL:', `${BASE_URL}doctors/by/specializationclinic`);
+    
+    const requestParams = {
+      specialization_name: specializationName,
+      clinic_id: clinicId
+    };
+    console.log('🔍 DOCTORS API DEBUG - Request params:', JSON.stringify(requestParams, null, 2));
     
     const response = await axios.get(`${BASE_URL}doctors/by/specializationclinic`, {
-      params: {
-        specialization_name: specializationName,
-        clinic_id: clinicId
-      },
+      params: requestParams,
       headers: {
         'Content-Type': 'application/json',
         Authorization: basicAuth,
       },
     });
 
-    console.log('Doctors by specialization and clinic response status:', response.status);
-    console.log('Doctors by specialization and clinic API response:', response.data);
+    console.log('✅ DOCTORS API DEBUG - Response status:', response.status);
+    console.log('✅ DOCTORS API DEBUG - Response data:', JSON.stringify(response.data, null, 2));
+    console.log('✅ DOCTORS API DEBUG - Number of doctors returned:', Array.isArray(response.data) ? response.data.length : 'Not an array');
+    
+    // Debug each doctor's specialization data
+    if (Array.isArray(response.data)) {
+      response.data.forEach((doctor, index) => {
+        console.log(`🔍 DOCTOR ${index + 1} DEBUG:`, {
+          name: doctor.name,
+          specialization_id: doctor.specialization_id,
+          specialization: doctor.specialization,
+          specialization_name: doctor.specialization?.name,
+          type: doctor.type
+        });
+      });
+    }
     
     return {
       success: true,
       data: response.data,
     };
   } catch (error) {
-    console.error('Error fetching doctors by specialization and clinic:', error);
+    console.error('❌ DOCTORS API DEBUG - Error fetching doctors by specialization and clinic:', error);
     
     if (error.response) {
       // Server responded with error status
-      console.error('Error Status:', error.response.status);
-      console.error('Error Data:', error.response.data);
-      console.error('Error Headers:', error.response.headers || 'No headers available');
+      console.error('❌ DOCTORS API DEBUG - Error Status:', error.response.status);
+      console.error('❌ DOCTORS API DEBUG - Error Data:', error.response.data);
+      console.error('❌ DOCTORS API DEBUG - Error Headers:', error.response.headers || 'No headers available');
       
       return {
         success: false,
@@ -48,7 +65,7 @@ export const fetchDoctorsBySpecializationClinic = async (specializationName, cli
       };
     } else if (error.request) {
       // Request was made but no response received
-      console.error('No response received:', error.request);
+      console.error('❌ DOCTORS API DEBUG - No response received:', error.request);
       
       return {
         success: false,
@@ -57,7 +74,7 @@ export const fetchDoctorsBySpecializationClinic = async (specializationName, cli
       };
     } else {
       // Something else happened
-      console.error('Request setup error:', error.message);
+      console.error('❌ DOCTORS API DEBUG - Request setup error:', error.message);
       
       return {
         success: false,
