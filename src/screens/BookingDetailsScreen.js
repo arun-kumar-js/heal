@@ -22,6 +22,7 @@ import { PoppinsFonts, FontStyles } from '../config/fonts';
 import BackButton from '../components/BackButton';
 import { storeUserDetail, formatAppointmentData } from '../services/bookingApi';
 import Toast from 'react-native-toast-message';
+import { formatMobileInput, validateMobileNumber } from '../utils/mobileValidation';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setDoctor, 
@@ -62,6 +63,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
   );
   const [isReasonEditable, setIsReasonEditable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [mobileError, setMobileError] = useState('');
 
   // Initialize Redux state with route params
   useEffect(() => {
@@ -165,6 +167,24 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     return specialtyMap[doctor?.specialization_id] || 'General Medicine';
   };
 
+  // Handle mobile number input with validation
+  const handleMobileNumberChange = (text) => {
+    // Format the input to only allow digits and limit to 10 characters
+    const formattedText = formatMobileInput(text);
+    setMobileNumber(formattedText);
+    
+    // Clear previous error
+    setMobileError('');
+    
+    // Validate the mobile number
+    if (formattedText.length > 0) {
+      const validation = validateMobileNumber(formattedText);
+      if (!validation.isValid) {
+        setMobileError(validation.error);
+      }
+    }
+  };
+
   const renderStars = (rating) => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -198,6 +218,11 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     }
     if (!mobileNumber.trim()) {
       errors.push('Please enter your mobile number');
+    } else {
+      const mobileValidation = validateMobileNumber(mobileNumber.trim());
+      if (!mobileValidation.isValid) {
+        errors.push(mobileValidation.error);
+      }
     }
     if (!email.trim()) {
       errors.push('Please enter your email');
@@ -488,13 +513,17 @@ const BookingDetailsScreen = ({ navigation, route }) => {
               />
             </View>
             <TextInput
-              style={styles.input}
+              style={[styles.input, mobileError && styles.inputError]}
               value={mobileNumber}
-              onChangeText={setMobileNumber}
+              onChangeText={handleMobileNumberChange}
               placeholder="Enter your mobile number"
               placeholderTextColor="#999"
               keyboardType="phone-pad"
+              maxLength={10}
             />
+            {mobileError ? (
+              <Text style={styles.errorText}>{mobileError}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -781,6 +810,17 @@ marginTop: hp('1%'),
   textAreaReadOnly: {
     backgroundColor: '#f0f0f0',
     color: '#666',
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
+    marginTop: hp('0.5%'),
+    marginLeft: wp('2%'),
   },
   buttonContainer: {
     flexDirection: 'row',

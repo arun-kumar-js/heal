@@ -417,6 +417,7 @@ export const selectFormattedUserData = (state) => {
   let email = '';
   let patientId = null;
   let isLoggedIn = false;
+  let profileImage = null;
   
   // 1. Try patient data first
   if (patientData) {
@@ -425,6 +426,14 @@ export const selectFormattedUserData = (state) => {
     email = patientData.email || '';
     patientId = patientData.id || patientData.patient_unique_id;
     isLoggedIn = true;
+    
+    // Handle profile image with base URL
+    if (patientData.profile_image) {
+      const baseUrl = 'https://spiderdesk.asia/healto/';
+      profileImage = patientData.profile_image.startsWith('http') 
+        ? patientData.profile_image 
+        : `${baseUrl}${patientData.profile_image}`;
+    }
   }
   // 2. Try user profile data
   else if (userProfile) {
@@ -433,6 +442,14 @@ export const selectFormattedUserData = (state) => {
     email = userProfile.email || '';
     patientId = userProfile.id || userProfile.patient_unique_id;
     isLoggedIn = true;
+    
+    // Handle profile image with base URL
+    if (userProfile.profile_image) {
+      const baseUrl = 'https://spiderdesk.asia/healto/';
+      profileImage = userProfile.profile_image.startsWith('http') 
+        ? userProfile.profile_image 
+        : `${baseUrl}${userProfile.profile_image}`;
+    }
   }
   // 3. Try OTP response data
   else if (otpResponse && otpResponse.data) {
@@ -441,6 +458,14 @@ export const selectFormattedUserData = (state) => {
     email = otpResponse.data.email || '';
     patientId = otpResponse.data.id || otpResponse.data.patient_unique_id;
     isLoggedIn = true;
+    
+    // Handle profile image with base URL
+    if (otpResponse.data.profile_image) {
+      const baseUrl = 'https://spiderdesk.asia/healto/';
+      profileImage = otpResponse.data.profile_image.startsWith('http') 
+        ? otpResponse.data.profile_image 
+        : `${baseUrl}${otpResponse.data.profile_image}`;
+    }
   }
   
   return {
@@ -449,6 +474,7 @@ export const selectFormattedUserData = (state) => {
     email,
     patientId,
     isLoggedIn,
+    profileImage,
   };
 };
 

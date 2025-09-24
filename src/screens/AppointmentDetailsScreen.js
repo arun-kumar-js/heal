@@ -195,8 +195,8 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
   };
 
   const handleSubmitFeedback = async () => {
-    if (doctorRating === 0 || hospitalRating === 0) {
-      alert('Please rate both doctor and hospital before submitting feedback.');
+    if (doctorRating === 0 && hospitalRating === 0) {
+      alert('Please rate at least the doctor or hospital before submitting feedback.');
       return;
     }
 
@@ -214,8 +214,8 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
 
       // Detailed console logging for debugging
       console.log('=== REVIEW SUBMISSION DEBUG ===');
-      console.log('Doctor Rating:', doctorRating);
-      console.log('Hospital Rating:', hospitalRating);
+      console.log('Doctor Rating (type:', typeof doctorRating, 'value:', doctorRating, ')');
+      console.log('Hospital Rating (type:', typeof hospitalRating, 'value:', hospitalRating, ')');
       console.log('--- Raw Data Sources ---');
       console.log('doctorData:', doctorData);
       console.log('clinicData:', clinicData);
@@ -248,16 +248,22 @@ const AppointmentDetailsScreen = ({ navigation, route }) => {
 
       // Try to submit to API (optional - for server sync)
       try {
+        console.log('=== SUBMITTING TO API ===');
+        console.log('Review Data being sent to API:', JSON.stringify(reviewData, null, 2));
+        
         const result = await submitReview(reviewData);
         console.log('API Response:', result);
         
         if (result.success) {
           console.log('Review also submitted to server successfully');
+          alert('Review submitted successfully!');
         } else {
           console.log('Server submission failed, but local save was successful');
+          console.log('API Error:', result.error);
         }
       } catch (apiError) {
         console.log('API submission failed, but local save was successful:', apiError);
+        console.log('API Error Details:', apiError);
       }
       
     } catch (error) {

@@ -23,8 +23,12 @@ import {
 // Removed fallback storage imports - only using Redux now
 import { PoppinsFonts } from '../config/fonts';
 import { updatePatientProfile, validatePatientData } from '../services/patientUpdateApi';
+import { uploadProfileImage, uploadProfileImageAlternative } from '../services/profileImageApi';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectPatientId, selectPatientData, selectFormattedUserData, loadUserOTPResponse, updatePatientData, fetchUserProfile, selectUser } from '../store/slices/userSlice';
+import { formatMobileInput, validateMobileNumber } from '../utils/mobileValidation';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { request, PERMISSIONS, RESULTS, check } from 'react-native-permissions';
 
 const ProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -41,6 +45,9 @@ const ProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasTriedFetching, setHasTriedFetching] = useState(false);
+  const [profileImageUri, setProfileImageUri] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
 
   // Load user data from Redux only on initial mount
   useEffect(() => {
@@ -268,9 +275,271 @@ const ProfileScreen = ({ navigation }) => {
     navigation.goBack();
   };
 
+  // Request photo library permission
+  const requestPhotoPermission = async () => {
+    try {
+      console.log('=== REQUESTING PHOTO PERMISSION ===');
+      
+      let permissions = [];
+      
+      if (Platform.OS === 'ios') {
+        permissions = [PERMISSIONS.IOS.PHOTO_LIBRARY];
+      } else {
+        // For Android, we need to check the API level and request appropriate permissions
+        permissions = [
+          PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+          PERMISSIONS.ANDROID.READ_MEDIA_IMAGES
+        ];
+      }
+      
+      console.log('Platform:', Platform.OS);
+      console.log('Permissions to check:', permissions);
+      
+      // Check all permissions first
+      const permissionStatuses = {};
+      for (const permission of permissions) {
+        const status = await check(permission);
+        permissionStatuses[permission] = status;
+        console.log(`Permission ${permission}: ${status}`);
+      }
+      
+      // Check if any permission is already granted
+      const hasGrantedPermission = Object.values(permissionStatuses).some(status => status === RESULTS.GRANTED);
+      if (hasGrantedPermission) {
+        console.log('At least one permission already granted');
+        return true;
+      }
+      
+      // Request permissions that are denied
+      const deniedPermissions = permissions.filter(permission => 
+        permissionStatuses[permission] === RESULTS.DENIED
+      );
+      
+      if (deniedPermissions.length > 0) {
+        console.log('Requesting denied permissions:', deniedPermissions);
+        
+        for (const permission of deniedPermissions) {
+          const result = await request(permission);
+          console.log(`Permission ${permission} request result:`, result);
+          
+          if (result === RESULTS.GRANTED) {
+            console.log('Permission granted successfully');
+            return true;
+          }
+        }
+        
+        // If we get here, all permissions were denied
+        console.log('All permissions denied by user');
+        Alert.alert(
+          'Permission Required',
+          'Photo library access is required to select a profile picture. Please grant permission in settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => {
+              console.log('User wants to go to settings');
+            }}
+          ]
+        );
+        return false;
+      }
+      
+      // Check for blocked permissions
+      const blockedPermissions = permissions.filter(permission => 
+        permissionStatuses[permission] === RESULTS.BLOCKED
+      );
+      
+      if (blockedPermissions.length > 0) {
+        console.log('Permission blocked, need to go to settings');
+        Alert.alert(
+          'Permission Blocked',
+          'Photo library access is blocked. Please enable it in app settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Settings', onPress: () => {
+              console.log('User wants to go to settings');
+            }}
+          ]
+        );
+        return false;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error requesting photo permission:', error);
+      Alert.alert('Error', 'Failed to request permission. Please try again.');
+      return false;
+    }
+  };
+
+  // Handle phone number input with validation
+  const handlePhoneNumberChange = (text) => {
+    // Format the input to only allow digits and limit to 10 characters
+    const formattedText = formatMobileInput(text);
+    setPhoneNumber(formattedText);
+    
+    // Clear previous error
+    setPhoneError('');
+    
+    // Validate the phone number
+    if (formattedText.length > 0) {
+      const validation = validateMobileNumber(formattedText);
+      if (!validation.isValid) {
+        setPhoneError(validation.error);
+      }
+    }
+  };
+
+  // Handle image picker
+  const handleImagePicker = async () => {
+    console.log('=== HANDLE IMAGE PICKER ===');
+    console.log('isEditing:', isEditing);
+    console.log('uploadingImage:', uploadingImage);
+    
+    if (!isEditing) {
+      Alert.alert('Edit Mode Required', 'Please enable edit mode to change your profile picture.');
+      return;
+    }
+
+    if (uploadingImage) {
+      Alert.alert('Upload in Progress', 'Please wait for the current upload to complete.');
+      return;
+    }
+
+    try {
+      console.log('Requesting photo permission...');
+      const hasPermission = await requestPhotoPermission();
+      console.log('Permission granted:', hasPermission);
+      
+      if (!hasPermission) {
+        console.log('Permission not granted, cannot open gallery');
+        return;
+      }
+
+      console.log('Opening image library...');
+      const options = {
+        mediaType: 'photo',
+        includeBase64: false,
+        maxHeight: 2000,
+        maxWidth: 2000,
+        quality: 0.8,
+      };
+
+      console.log('Image picker options:', options);
+      
+      launchImageLibrary(options, async (response) => {
+        console.log('Image picker response:', response);
+        
+        if (response.didCancel) {
+          console.log('Image picker cancelled by user');
+          return;
+        }
+        
+        if (response.errorMessage) {
+          console.log('Image picker error:', response.errorMessage);
+          Alert.alert('Error', `Failed to open gallery: ${response.errorMessage}`);
+          return;
+        }
+
+        if (response.assets && response.assets.length > 0) {
+          const asset = response.assets[0];
+          console.log('Selected asset:', asset);
+          
+          if (asset.uri) {
+            console.log('Image selected:', asset.uri);
+            setProfileImageUri(asset.uri);
+            
+            // Upload image to API
+            await uploadImageToAPI(asset.uri);
+          } else {
+            console.log('No URI found in selected asset');
+            Alert.alert('Error', 'Failed to get image URI');
+          }
+        } else {
+          console.log('No assets in response');
+          Alert.alert('Error', 'No image selected');
+        }
+      });
+    } catch (error) {
+      console.error('Error in handleImagePicker:', error);
+      Alert.alert('Error', 'Failed to open image picker. Please try again.');
+    }
+  };
+
+  // Upload image to API
+  const uploadImageToAPI = async (imageUri) => {
+    if (!patientId) {
+      Alert.alert('Error', 'Patient ID not found. Please login again.');
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+      console.log('Uploading profile image...');
+      
+      // Try primary upload method first
+      let result = await uploadProfileImage(patientId, imageUri);
+      
+      // If primary method fails, try alternative
+      if (!result.success) {
+        console.log('Primary upload failed, trying alternative method...');
+        result = await uploadProfileImageAlternative(patientId, imageUri);
+      }
+
+      if (result.success) {
+        console.log('Profile image uploaded successfully');
+        Alert.alert('Success', 'Profile picture updated successfully!');
+        
+        // Update Redux store with new image URL if provided
+        if (result.data && result.data.profile_image) {
+          const updatedPatientData = {
+            ...patientData,
+            profile_image: result.data.profile_image,
+            lastUpdated: new Date().toISOString(),
+          };
+          dispatch(updatePatientData(updatedPatientData));
+        }
+      } else {
+        console.log('Failed to upload profile image:', result.error);
+        
+        // Since server doesn't have image upload endpoints, just save locally
+        Alert.alert(
+          'Image Saved Locally', 
+          'Your profile picture has been updated! The image is saved on your device. Server upload is not available at this time.',
+          [
+            { text: 'OK', onPress: () => {
+              // Image is already saved locally in profileImageUri state
+              console.log('Image saved locally, user can see it in the UI');
+            }}
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      Alert.alert('Error', 'Failed to upload profile picture. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
 
 
   const getProfileImage = () => {
+    // If user selected a new image, use that
+    if (profileImageUri) {
+      return { uri: profileImageUri };
+    }
+    
+    // If patient has a profile image from server, use that
+    if (patientData?.profile_image) {
+      const baseUrl = 'https://spiderdesk.asia/healto/';
+      return { 
+        uri: patientData.profile_image.startsWith('http') 
+          ? patientData.profile_image 
+          : `${baseUrl}${patientData.profile_image}`
+      };
+    }
+    
+    // Fallback to generated avatar
     return { 
       uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=300&background=d4a574&color=fff&bold=true`
     };
@@ -318,13 +587,29 @@ const ProfileScreen = ({ navigation }) => {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Picture Section */}
         <View style={styles.profilePictureContainer}>
-          <View style={styles.profilePictureWrapper}>
+          <TouchableOpacity 
+            style={styles.profilePictureWrapper}
+            onPress={handleImagePicker}
+            disabled={!isEditing || uploadingImage}
+          >
             <Image 
               source={getProfileImage()} 
               style={styles.profilePicture}
               resizeMode="cover"
             />
-          </View>
+            {isEditing && (
+              <View style={styles.editImageOverlay}>
+                {uploadingImage ? (
+                  <Icon name="spinner" size={20} color="#FFFFFF" />
+                ) : (
+                  <Icon name="camera" size={20} color="#FFFFFF" />
+                )}
+              </View>
+            )}
+          </TouchableOpacity>
+          {isEditing && (
+            <Text style={styles.editImageText}>Tap to change photo</Text>
+          )}
         </View>
 
         {/* User Information Card */}
@@ -355,14 +640,18 @@ const ProfileScreen = ({ navigation }) => {
                 <Icon name="phone" size={16} color="#0D6EFD" />
               </View>
               <TextInput
-                style={styles.input}
+                style={[styles.input, phoneError && styles.inputError]}
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
+                onChangeText={handlePhoneNumberChange}
                 placeholder="Enter your phone number"
                 placeholderTextColor="#999"
                 keyboardType="phone-pad"
                 editable={isEditing}
+                maxLength={10}
               />
+              {phoneError ? (
+                <Text style={styles.errorText}>{phoneError}</Text>
+              ) : null}
             </View>
           </View>
 
@@ -480,11 +769,30 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     padding: wp('1%'),
     backgroundColor: '#d4a574',
+    position: 'relative',
   },
   profilePicture: {
     width: '100%',
     height: '100%',
     borderRadius: wp('14%'),
+  },
+  editImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: wp('14%'),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editImageText: {
+    fontSize: wp('3.5%'),
+    color: '#666',
+    fontFamily: PoppinsFonts.Regular,
+    marginTop: hp('1%'),
+    textAlign: 'center',
   },
   infoCard: {
     backgroundColor: '#fff',
@@ -554,6 +862,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: wp('3.5%'),
+    fontFamily: PoppinsFonts.Regular,
+    marginTop: hp('0.5%'),
+    marginLeft: wp('2%'),
   },
   saveButtonText: {
     fontSize: wp('4.5%'),

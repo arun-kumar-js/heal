@@ -49,7 +49,17 @@ export const submitReview = async (reviewData) => {
     console.log('Base URL:', BASE_URL);
     console.log('Review Data Received:', reviewData);
     
-    // Since it's a GET request, we need to construct the URL with query parameters
+    // First try POST method (recommended)
+    console.log('Trying POST method first...');
+    const postResult = await submitReviewPost(reviewData);
+    if (postResult.success) {
+      console.log('POST method successful');
+      return postResult;
+    }
+    
+    console.log('POST method failed, trying GET method...');
+    
+    // If POST fails, try GET method with query parameters
     const queryParams = new URLSearchParams({
       doctor_id: reviewData.doctor_id,
       clinic_id: reviewData.clinic_id,
@@ -62,10 +72,10 @@ export const submitReview = async (reviewData) => {
     // Try multiple possible endpoints
     const possibleEndpoints = [
       `${BASE_URL}reviews-update`,
-      `${BASE_URL}api/reviews-update`,
       `${BASE_URL}review`,
-      `${BASE_URL}api/review`,
       `${BASE_URL}feedback`,
+      `${BASE_URL}api/reviews-update`,
+      `${BASE_URL}api/review`,
       `${BASE_URL}api/feedback`
     ];
 

@@ -10,6 +10,7 @@ import {
   ImageBackground,
   StatusBar,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -22,24 +23,37 @@ import axios from 'axios';
 import { useDispatch, useSelector } from 'react-redux';
 import { setSelectedCategory } from '../store/slices/doctorsSlice';
 import { selectDoctors } from '../store/selectors/doctorsSelectors';
-import { selectFormattedUserData, loadUserOTPResponse } from '../store/slices/userSlice';
+import { selectFormattedUserData, loadUserOTPResponse, selectPatientId } from '../store/slices/userSlice';
 import { getOTPResponse } from '../utils/otpStorage';
 import { performCompleteLogout, getLogoutConfirmation } from '../utils/logoutUtils';
 import { PoppinsFonts, FontStyles } from '../config/fonts';
+import LocationService from '../services/locationService';
+import GeocodingService from '../services/geocodingService';
+import { getUserProfile } from '../services/profileApi';
 
 const Home = ({ navigation }) => {
   const dispatch = useDispatch();
   const doctorsFromRedux = useSelector(selectDoctors);
   const userData = useSelector(selectFormattedUserData);
+  const patientId = useSelector(selectPatientId);
   const [activeFilter, setActiveFilter] = useState('All');
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationName, setLocationName] = useState('Getting location...');
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [profileImage, setProfileImage] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [userName, setUserName] = useState('User');
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load user data and doctors data on component mount
   useEffect(() => {
     loadDoctors();
     loadUserData();
-  }, []);
+    loadCurrentLocation();
+    loadProfileImage();
+  }, [patientId]);
 
   const loadUserData = async () => {
     try {
@@ -47,6 +61,114 @@ const Home = ({ navigation }) => {
       dispatch(loadUserOTPResponse());
     } catch (error) {
       console.error('❌ Error loading user data:', error);
+    }
+  };
+
+  const loadProfileImage = async () => {
+    if (!patientId) {
+      console.log('⚠️ No patient ID available for profile image');
+      return;
+    }
+
+    try {
+      console.log('🔄 Loading profile image from API for patient ID:', patientId);
+      setProfileLoading(true);
+      
+      const result = await getUserProfile(patientId);
+      
+      if (result.success && result.data) {
+        console.log('✅ Profile data loaded:', result.data);
+        
+        // Extract user name from API response
+        if (result.data.name) {
+          console.log('👤 User name from API:', result.data.name);
+          setUserName(result.data.name);
+        }
+        
+        // Extract profile image from API response
+        if (result.data.profile_image) {
+          const baseUrl = 'https://spiderdesk.asia/healto/';
+          const imageUrl = result.data.profile_image.startsWith('http') 
+            ? result.data.profile_image 
+            : `${baseUrl}${result.data.profile_image}`;
+          
+          console.log('📸 Profile image URL:', imageUrl);
+          setProfileImage(imageUrl);
+        } else {
+          console.log('⚠️ No profile image found in API response');
+        }
+      } else {
+        console.log('❌ Failed to load profile data:', result.message);
+      }
+    } catch (error) {
+      console.error('❌ Error loading profile image:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    console.log('🔄 Pull to refresh triggered');
+    setRefreshing(true);
+    
+    try {
+      // Refresh all data in parallel
+      await Promise.all([
+        loadDoctors(),
+        loadProfileImage(),
+        loadCurrentLocation(),
+        loadUserData()
+      ]);
+      
+      console.log('✅ All data refreshed successfully');
+      
+      // Show success feedback (optional)
+      // You can add a toast notification here if needed
+      
+    } catch (error) {
+      console.error('❌ Error during refresh:', error);
+      
+      // Show error feedback (optional)
+      Alert.alert(
+        'Refresh Failed',
+        'Some data could not be refreshed. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const loadCurrentLocation = async () => {
+    try {
+      console.log('🔄 Loading current location...');
+      setLocationLoading(true);
+      setLocationName('Getting location...');
+      
+      // Get current location
+      const location = await LocationService.getCurrentLocation();
+      
+      if (location) {
+        console.log('📍 Location received:', location);
+        setCurrentLocation(location);
+        
+        // Get location name using reverse geocoding
+        const locationNameResult = await GeocodingService.getLocationName(
+          location.latitude, 
+          location.longitude
+        );
+        
+        console.log('🏙️ Location name:', locationNameResult);
+        setLocationName(locationNameResult);
+      } else {
+        console.log('❌ No location received');
+        setLocationName('Location unavailable');
+      }
+    } catch (error) {
+      console.error('❌ Error loading location:', error);
+      setLocationName('Location unavailable');
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -162,6 +284,19 @@ console.log("doctors", doctors);
     
     
   }
+
+  // Helper function to get user profile image
+  const getUserProfileImage = () => {
+    // If we have a profile image from API, use that
+    if (profileImage) {
+      return { uri: profileImage };
+    }
+    
+    // Fallback to generated avatar based on API user name
+    return { 
+      uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&size=300&background=d4a574&color=fff&bold=true` 
+    };
+  };
 
   // Helper function to get doctor image
   const getDoctorImage = (doctor) => {
@@ -283,6 +418,16 @@ console.log("doctors", doctors);
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           scrollEnabled={activeFilter === 'All'}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#1A83FF']} // Android
+              tintColor="#1A83FF" // iOS
+              title="Refreshing..." // iOS
+              titleColor="#1A83FF" // iOS
+            />
+          }
         >
           <LinearGradient
             colors={['#1A83FF', '#003784']}
@@ -291,20 +436,46 @@ console.log("doctors", doctors);
             style={styles.header}
           >
             <View style={styles.headerTop}>
-              <Image
-                source={{
-                  uri: userData.profileImage || 'https://randomuser.me/api/portraits/men/32.jpg',
-                }}
-                style={styles.profileImage}
-              />
+              <View style={styles.profileImageContainer}>
+                <Image
+                  source={getUserProfileImage()}
+                  style={styles.profileImage}
+                />
+                {profileLoading && (
+                  <View style={styles.profileLoadingOverlay}>
+                    <Icon 
+                      name="spinner" 
+                      size={16} 
+                      color="#FFFFFF" 
+                    />
+                  </View>
+                )}
+              </View>
               <View style={styles.headerTextContainer}>
-                <Text style={styles.greetingText}>Hi, {userData.name}</Text>
-                <View style={styles.locationContainer}>
+                <Text style={styles.greetingText}>Hi, {userName}</Text>
+                <TouchableOpacity 
+                  style={styles.locationContainer}
+                  onPress={loadCurrentLocation}
+                  disabled={locationLoading}
+                >
                   <Text style={styles.locationText}>
-                    {userData.location}
+                    {locationLoading ? 'Getting location...' : locationName}
                   </Text>
-                  <Icon name="map-marker-alt" size={16} color="#FFFFFF" style={styles.locationIcon} />
-                </View>
+                  <Icon 
+                    name="map-marker-alt" 
+                    size={16} 
+                    color="#FFFFFF" 
+                    style={styles.locationIcon} 
+                  />
+                  {locationLoading && (
+                    <Icon 
+                      name="spinner" 
+                      size={12} 
+                      color="#FFFFFF" 
+                      style={styles.loadingIcon}
+                    />
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
             <TouchableOpacity 
@@ -605,6 +776,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: hp('2.5%'),
   },
+  profileImageContainer: {
+    position: 'relative',
+  },
   profileImage: {
     width: wp('12%'),
     height: wp('12%'),
@@ -612,9 +786,33 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
+  profileLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: wp('6%'),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTextContainer: {
     flex: 1,
     marginLeft: wp('4%'),
+  },
+  refreshButton: {
+    padding: wp('3%'),
+    borderRadius: wp('6%'),
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshIcon: {
+    // Default state
+  },
+  refreshIconSpinning: {
+    // Animation will be handled by the spinning icon
   },
   greetingText: {
     color: '#FFFFFF',
@@ -813,6 +1011,10 @@ const styles = StyleSheet.create({
   },
   locationIcon: {
     marginLeft: 4,
+  },
+  loadingIcon: {
+    marginLeft: 6,
+    opacity: 0.8,
   },
   patientIdText: {
     fontSize: wp('3.5%'),

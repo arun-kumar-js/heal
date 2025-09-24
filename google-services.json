@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "389888340904",
+    "project_id": "com-healto",
+    "storage_bucket": "com-healto.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:389888340904:android:6420ad2ff84a80f12ca39d",
+        "android_client_info": {
+          "package_name": "com.spiderindia.healto"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmQQfkf_feP4qTchknEeLbzPqVw7j8pVw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

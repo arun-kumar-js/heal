@@ -14,3 +14,22 @@ export const HOSPITALS_BY_SPECIALIZATION_URL = BASE_URL + 'specialization/by/cli
 export const PATIENT_UPDATE_URL = BASE_URL + 'patient-update';
 export const PAYMENT_UPDATE_URL = BASE_URL + 'payment-update';
 export const DOCTOR_DETAILS_URL = BASE_URL + 'doctorDetails';
+
+// Google Maps API Keys
+export const GOOGLE_MAPS_ANDROID_API_KEY = 'AIzaSyAXoi7Byq8PhEN2TusAaNRnnMBnOHzopJQ';
+export const GOOGLE_MAPS_IOS_API_KEY = 'AIzaSyDhaELwftxhvXCSBZPdkOjHN_F3guOVDic';
+
+// Firebase Configuration
+export const FIREBASE_PROJECT_ID = 'com-healto';
+export const FIREBASE_PROJECT_NUMBER = '389888340904';
+export const FIREBASE_STORAGE_BUCKET = 'com-healto.firebasestorage.app';
+export const FIREBASE_BUNDLE_ID = 'com.spiderindia.healto';
+
+// Android Firebase
+export const FIREBASE_ANDROID_API_KEY = 'AIzaSyDmQQfkf_feP4qTchknEeLbzPqVw7j8pVw';
+export const FIREBASE_ANDROID_APP_ID = '1:389888340904:android:6420ad2ff84a80f12ca39d';
+
+// iOS Firebase
+export const FIREBASE_IOS_API_KEY = 'AIzaSyDMDIdwQk5vTEUEsjpC2qGdif4PcYZpmKI';
+export const FIREBASE_IOS_APP_ID = '1:389888340904:ios:a262af11d87d9b9a2ca39d';
+export const FIREBASE_GCM_SENDER_ID = '389888340904';
