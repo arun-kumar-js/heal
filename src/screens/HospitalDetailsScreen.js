@@ -202,7 +202,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
       3: 'Pediatrics',
       4: 'Dermatology',
       5: 'Neurology',
-      6: 'General Medicine',
+      6: 'Neurology',
       7: 'Gynecology',
       8: 'Ophthalmology',
       9: 'ENT',
@@ -279,13 +279,51 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
   console.log('🏥 HOSPITAL DETAILS - Final doctors count used:', hospitalDetails?.doctors_count || currentHospital?.doctors_count || 0);
   console.log('🏥 HOSPITAL DETAILS - Experience:', currentHospital?.experience);
 
-  const departmentsData = [
-    { name: 'Cardiology', icon: require('../Assets/Images/heart.png'), },
-    { name: 'ENT', icon: require('../Assets/Images/ENT.png'), },
-    { name: 'Orthopedics', icon: require('../Assets/Images/bone.png'),  },
-    { name: 'Neurology', icon: require('../Assets/Images/brain.png'), },
-    { name: 'Gastroenterology', icon: require('../Assets/Images/heart.png'), },
-  ];
+  // Dynamic departments based on hospital specializations
+  const getDepartmentsData = () => {
+    if (!hospitalDetails?.clinics?.specializations) {
+      // Fallback to default departments if no specializations available
+      return [
+        { name: 'Cardiology', icon: require('../Assets/Images/heart.png'), },
+        { name: 'ENT', icon: require('../Assets/Images/ENT.png'), },
+        { name: 'Orthopedics', icon: require('../Assets/Images/bone.png'),  },
+        { name: 'Neurology', icon: require('../Assets/Images/brain.png'), },
+        { name: 'Gastroenterology', icon: require('../Assets/Images/Gastroenterology.png'), },
+      ];
+    }
+
+    // Icon mapping for specializations - using proper images from Category.js
+    const iconMapping = {
+      'Cardiology': require('../Assets/Images/heart.png'),
+      'Neurology': require('../Assets/Images/brain.png'),
+      'Orthopedics': require('../Assets/Images/bone.png'),
+      'Pediatrics': require('../Assets/Images/baby.png'),
+      'Gynecology': require('../Assets/Images/gyneric.png'),
+      'Dermatology': require('../Assets/Images/Dermatology.png'),
+      'Ophthalmology': require('../Assets/Images/Ophthalmology.png'),
+      'ENT': require('../Assets/Images/ENT.png'),
+      'Dentistry': require('../Assets/Images/Dentistry.png'),
+      'Psychiatry': require('../Assets/Images/Psychiatry.png'),
+      'Gastroenterology': require('../Assets/Images/Gastroenterology.png'),
+      'Urology': require('../Assets/Images/Urology.png'),
+      'Radiology': require('../Assets/Images/Radiology.png'),
+      'Pulmonology': require('../Assets/Images/Pulmonology.png'),
+    };
+
+    // Convert specializations to departments data
+    return hospitalDetails.clinics.specializations.map(specialization => ({
+      name: specialization.name,
+      icon: iconMapping[specialization.name] || require('../Assets/Images/heart.png'),
+      id: specialization.id,
+      description: specialization.description
+    }));
+  };
+
+  const departmentsData = getDepartmentsData();
+  
+  // Debug: Log specializations and departments data
+  console.log('🏥 HOSPITAL DETAILS - Hospital specializations:', hospitalDetails?.clinics?.specializations);
+  console.log('🏥 HOSPITAL DETAILS - Generated departments data:', departmentsData);
 
   const filterData = [
     { name: 'All', icon: null },
@@ -381,9 +419,7 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
               
               <View style={styles.hospitalInfo}>
                 <Text style={styles.hospitalName}>{hospitalData.name}</Text>
-                <Text style={styles.hospitalType}>
-                  {hospitalData.type === 'hospital' ? 'Multi Specialty Hospital' : 'Clinic'}
-                </Text>
+               
                 <View style={styles.ratingContainer}>
                   <View style={styles.starsContainer}>
                     {renderStars(hospitalData.rating)}
@@ -392,8 +428,8 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
                 </View>
               </View>
               
-              <TouchableOpacity style={styles.callButton}>
-                <Icon name="phone" size={20} color="#FFFFFF" />
+             <TouchableOpacity style={styles.callButton}>
+                <Image source={require('../Assets/Images/phone2.png')} style={{width: wp('12%'), height: wp('12%')}} />
               </TouchableOpacity>
             </View>
           </ImageBackground>
@@ -448,13 +484,15 @@ const HospitalDetailsScreen = ({ navigation, route }) => {
           <View style={styles.departmentGrid}>
             {departmentsData.map((dept, index) => (
               <TouchableOpacity 
-                key={index} 
+                key={dept.id || index} 
                 style={styles.departmentItem}
                 onPress={() => navigation.navigate('DoctorListByHospitalScreen', { 
                   doctors: displayedDoctors,
                   hospitalId: hospital?.id,
                   hospitalName: hospital?.name,
                   selectedCategory: dept.name,
+                  specializationId: dept.id,
+                  specializationDescription: dept.description,
                   fromHospital: true
                 })}
               >

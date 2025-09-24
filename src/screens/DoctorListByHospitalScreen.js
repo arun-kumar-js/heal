@@ -44,6 +44,8 @@ const DoctorListWithTimeScreen = ({ navigation, route }) => {
   console.log('- hospitalName:', hospitalName);
   console.log('- isFromHospital:', isFromHospital);
   console.log('- route.params:', route.params);
+  console.log('- selectedCategory type:', typeof selectedCategory);
+  console.log('- selectedCategory is undefined:', selectedCategory === undefined);
 
   // Fetch doctors from API when component mounts
   useEffect(() => {
@@ -57,19 +59,66 @@ const DoctorListWithTimeScreen = ({ navigation, route }) => {
       setError(null);
       
       try {
-        console.log('Fetching doctors for clinic:', clinicId, 'specialization:', selectedCategory);
+        console.log('🔍 DOCTOR LIST - Fetching doctors for:', {
+          selectedCategory,
+          clinicId,
+          hospitalName
+        });
         
+        // Make direct API call with selected category and hospital ID
         const result = await getDoctorsData(selectedCategory, clinicId, !!selectedCategory);
         
         if (result.success) {
-          setDoctors(result.data);
-          console.log('Successfully fetched doctors:', result.data.length);
+          console.log('🔍 API Response - Selected Category:', selectedCategory);
+          console.log('🔍 API Response - Doctors returned:', result.data.length);
+          
+          // Debug each doctor's specialization
+          result.data.forEach((doctor, index) => {
+            const doctorSpecialty = getDoctorSpecialty(doctor);
+            console.log(`Doctor ${index + 1}: ${doctor.name} - Specialization: ${doctorSpecialty} (ID: ${doctor.specialization_id})`);
+          });
+          
+          // If no selectedCategory, just show all doctors
+          if (!selectedCategory) {
+            console.log('No selected category, showing all doctors');
+            setDoctors(result.data);
+            return;
+          }
+          
+          // Apply client-side filtering as backup since API filtering is not working
+          let filteredDoctors = result.data.filter(doctor => {
+            const doctorSpecialty = getDoctorSpecialty(doctor);
+            const isMatch = doctorSpecialty && selectedCategory && 
+              doctorSpecialty.toLowerCase() === selectedCategory.toLowerCase();
+            console.log(`Filtering: ${doctor.name} (${doctorSpecialty}) vs ${selectedCategory} = ${isMatch}`);
+            return isMatch;
+          });
+          
+          // If no doctors found after filtering, try fetching all doctors and filter them
+          if (filteredDoctors.length === 0 && selectedCategory) {
+            console.log('⚠️ No doctors found after filtering, trying fallback...');
+            const fallbackResult = await getDoctorsData(null, clinicId, false);
+            
+            if (fallbackResult.success && fallbackResult.data.length > 0) {
+              console.log('🔄 Fallback successful, filtering all doctors...');
+              filteredDoctors = fallbackResult.data.filter(doctor => {
+                const doctorSpecialty = getDoctorSpecialty(doctor);
+                const isMatch = doctorSpecialty && selectedCategory && 
+                  doctorSpecialty.toLowerCase() === selectedCategory.toLowerCase();
+                console.log(`Fallback Filtering: ${doctor.name} (${doctorSpecialty}) vs ${selectedCategory} = ${isMatch}`);
+                return isMatch;
+              });
+            }
+          }
+          
+          console.log(`✅ Client-side filtered ${filteredDoctors.length} doctors out of ${result.data.length} for ${selectedCategory}`);
+          setDoctors(filteredDoctors);
         } else {
           setError(result.error);
-          console.error('Failed to fetch doctors:', result.error);
+          console.error('❌ DOCTOR LIST - Failed to fetch doctors:', result.error);
         }
       } catch (err) {
-        console.error('Error fetching doctors:', err);
+        console.error('❌ DOCTOR LIST - Error fetching doctors:', err);
         setError('Failed to fetch doctors. Please try again.');
       } finally {
         setLoading(false);
@@ -120,21 +169,33 @@ const DoctorListWithTimeScreen = ({ navigation, route }) => {
       return normalizeSpecialtyName(doctor.specialization.name);
     }
     
-    // Map specialization_id to actual specialty names as fallback
+    // Try direct specialization field
+    if (doctor.specialization && typeof doctor.specialization === 'string') {
+      return normalizeSpecialtyName(doctor.specialization);
+    }
+    
+    // Map specialization_id to actual specialty names
     const specialtyMap = {
       1: 'Cardiology',
       2: 'Orthopedics', 
       3: 'Pediatrics',
       4: 'Dermatology',
       5: 'Neurology',
-      6: 'General Medicine',
+      6: 'Neurology',
       7: 'Gynecology',
       8: 'Ophthalmology',
       9: 'ENT',
-      10: 'Psychiatry'
+      10: 'Psychiatry',
+      11: 'Gastroenterology',
+      12: 'Urology',
+      13: 'Pulmonology',
+      14: 'Radiology',
+      15: 'Dentistry',
+      16: 'Urology',
+      17: 'Radiology'
     };
     
-    // Use specialization_id if available, otherwise fallback to type
+    // Use specialization_id if available
     if (doctor.specialization_id) {
       return specialtyMap[doctor.specialization_id] || 'General Medicine';
     }
@@ -148,38 +209,28 @@ const DoctorListWithTimeScreen = ({ navigation, route }) => {
     return typeMap[doctor.type] || 'General Medicine';
   };
 
-  // Filter doctors by search query only (specialization filtering is done by API)
+  // Simple search filter - only filter by doctor name
   const filteredDoctors = useMemo(() => {
     if (!doctors || !Array.isArray(doctors)) {
-      console.log('No doctors data available:', doctors);
       return [];
     }
     
     // If no search query, return all doctors
     if (!searchQuery.trim()) {
-      console.log('No search query, returning all doctors:', doctors.length);
       return doctors;
     }
     
-    console.log('Filtering doctors by search query:', searchQuery, 'Total doctors:', doctors.length);
-    
-    const filtered = doctors.filter(doctor => {
+    // Filter by doctor name only
+    return doctors.filter(doctor => {
       if (!doctor || typeof doctor !== 'object') {
-        console.warn('Invalid doctor object in filter:', doctor);
         return false;
       }
       
       const doctorName = (doctor.name || '').toLowerCase();
       const searchTerm = searchQuery.trim().toLowerCase();
       
-      const isMatch = doctorName.includes(searchTerm);
-      console.log(`Doctor: ${doctor.name || 'Unknown'}, Search: ${searchTerm}, Match: ${isMatch}`);
-      
-      return isMatch;
+      return doctorName.includes(searchTerm);
     });
-    
-    console.log(`Filtered ${filtered.length} doctors out of ${doctors.length} for search: ${searchQuery}`);
-    return filtered;
   }, [doctors, searchQuery]);
 
   const renderStars = (rating) => {
@@ -387,32 +438,6 @@ const DoctorListWithTimeScreen = ({ navigation, route }) => {
                 : 'Try adjusting your search criteria or browse all doctors.'
               }
             </Text>
-            
-            {/* Debug information */}
-            <Text style={styles.debugText}>
-              Debug: {doctors.length} total doctors, {filteredDoctors.length} filtered
-            </Text>
-            <Text style={styles.debugText}>
-              Category: {selectedCategory || 'None'}, Clinic ID: {clinicId || 'N/A'}
-            </Text>
-            <Text style={styles.debugText}>
-              Hospital: {hospitalName || 'N/A'}, Search: {searchQuery || 'None'}
-            </Text>
-            
-            {/* Show all doctors as fallback for debugging */}
-            {doctors.length > 0 && (
-              <View style={styles.debugContainer}>
-                <Text style={styles.debugTitle}>All Available Doctors (Debug):</Text>
-                {doctors.slice(0, 3).map((doctor, index) => (
-                  <Text key={index} style={styles.debugDoctorText}>
-                    {doctor.name} - {getDoctorSpecialty(doctor)}
-                  </Text>
-                ))}
-                {doctors.length > 3 && (
-                  <Text style={styles.debugDoctorText}>... and {doctors.length - 3} more</Text>
-                )}
-              </View>
-            )}
           </View>
         )}
       </ScrollView>

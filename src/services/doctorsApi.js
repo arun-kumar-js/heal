@@ -1,6 +1,30 @@
 import axios from 'axios';
 import { BASE_URL, basicAuth } from '../config/config.js';
 
+// Helper function to get specialty name by ID
+const getSpecialtyNameById = (specializationId) => {
+  const specialtyMap = {
+    1: 'Cardiology',
+    2: 'Orthopedics', 
+    3: 'Pediatrics',
+    4: 'Dermatology',
+    5: 'Neurology',
+    6: 'Neurology', // Updated: ID 6 is actually Neurology, not General Medicine
+    7: 'Gynecology',
+    8: 'Ophthalmology',
+    9: 'ENT',
+    10: 'Psychiatry',
+    11: 'Gastroenterology',
+    12: 'Urology',
+    13: 'Pulmonology',
+    14: 'Radiology',
+    15: 'Dentistry',
+    16: 'Urology',
+    17: 'Radiology'
+  };
+  return specialtyMap[specializationId] || 'Unknown';
+};
+
 /**
  * Fetch doctors by specialization and clinic
  * @param {string} specializationName - The specialization name (e.g., "Cardiology", "Neurology")
@@ -14,11 +38,22 @@ export const fetchDoctorsBySpecializationClinic = async (specializationName, cli
     console.log('🔍 DOCTORS API DEBUG - clinicId:', clinicId);
     console.log('🔍 DOCTORS API DEBUG - API URL:', `${BASE_URL}doctors/by/specializationclinic`);
     
+    // Validate parameters
+    if (!specializationName || !clinicId) {
+      console.error('❌ DOCTORS API DEBUG - Missing required parameters:', { specializationName, clinicId });
+      return {
+        success: false,
+        error: 'Missing required parameters: specializationName and clinicId are required',
+        data: [],
+      };
+    }
+    
     const requestParams = {
       specialization_name: specializationName,
       clinic_id: clinicId
     };
     console.log('🔍 DOCTORS API DEBUG - Request params:', JSON.stringify(requestParams, null, 2));
+    console.log('🔍 DOCTORS API DEBUG - Full URL:', `${BASE_URL}doctors/by/specializationclinic?specialization_name=${encodeURIComponent(specializationName)}&clinic_id=${clinicId}`);
     
     const response = await axios.get(`${BASE_URL}doctors/by/specializationclinic`, {
       params: requestParams,
@@ -29,20 +64,32 @@ export const fetchDoctorsBySpecializationClinic = async (specializationName, cli
     });
 
     console.log('✅ DOCTORS API DEBUG - Response status:', response.status);
+    console.log('✅ DOCTORS API DEBUG - Response headers:', response.headers);
+    console.log('✅ DOCTORS API DEBUG - Response data type:', typeof response.data);
     console.log('✅ DOCTORS API DEBUG - Response data:', JSON.stringify(response.data, null, 2));
     console.log('✅ DOCTORS API DEBUG - Number of doctors returned:', Array.isArray(response.data) ? response.data.length : 'Not an array');
     
     // Debug each doctor's specialization data
     if (Array.isArray(response.data)) {
+      console.log('🔍 DOCTORS API DEBUG - Analyzing each doctor:');
       response.data.forEach((doctor, index) => {
         console.log(`🔍 DOCTOR ${index + 1} DEBUG:`, {
           name: doctor.name,
           specialization_id: doctor.specialization_id,
           specialization: doctor.specialization,
           specialization_name: doctor.specialization?.name,
-          type: doctor.type
+          type: doctor.type,
+          requested_specialization: specializationName
         });
+        
+        // Check if this doctor actually matches the requested specialization
+        const doctorSpecialty = doctor.specialization?.name || 
+                               (doctor.specialization_id ? getSpecialtyNameById(doctor.specialization_id) : 'Unknown');
+        const isMatch = doctorSpecialty.toLowerCase() === specializationName.toLowerCase();
+        console.log(`🔍 DOCTOR ${index + 1} MATCH CHECK: ${doctor.name} (${doctorSpecialty}) vs ${specializationName} = ${isMatch}`);
       });
+    } else {
+      console.log('⚠️ DOCTORS API DEBUG - Response is not an array:', response.data);
     }
     
     return {
@@ -242,8 +289,48 @@ export const getDoctorsData = async (specializationName, clinicId, filterBySpeci
   }
 };
 
+/**
+ * Test function to verify API endpoint with specific parameters
+ * @param {string} specializationName - The specialization name to test
+ * @param {number} clinicId - The clinic ID to test
+ * @returns {Promise<Object>} - Test result object
+ */
+export const testSpecializationAPI = async (specializationName, clinicId) => {
+  console.log('🧪 TESTING API ENDPOINT - doctors/by/specializationclinic');
+  console.log('🧪 TEST PARAMETERS:', { specializationName, clinicId });
+  
+  try {
+    const result = await fetchDoctorsBySpecializationClinic(specializationName, clinicId);
+    
+    console.log('🧪 TEST RESULT:', {
+      success: result.success,
+      doctorCount: result.data?.length || 0,
+      error: result.error
+    });
+    
+    if (result.success && result.data) {
+      console.log('🧪 TEST - Doctors returned:');
+      result.data.forEach((doctor, index) => {
+        const doctorSpecialty = doctor.specialization?.name || getSpecialtyNameById(doctor.specialization_id);
+        const isMatch = doctorSpecialty.toLowerCase() === specializationName.toLowerCase();
+        console.log(`  ${index + 1}. ${doctor.name} - ${doctorSpecialty} (Match: ${isMatch})`);
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('🧪 TEST ERROR:', error);
+    return {
+      success: false,
+      error: error.message,
+      data: []
+    };
+  }
+};
+
 export default {
   fetchDoctorsBySpecializationClinic,
   fetchAllDoctorsByClinic,
   getDoctorsData,
+  testSpecializationAPI,
 };

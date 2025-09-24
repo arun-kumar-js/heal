@@ -41,7 +41,7 @@ const getSpecializationName = (specializationId) => {
     3: 'Pediatrics',
     4: 'Dermatology',
     5: 'Neurology',
-    6: 'General Medicine',
+    6: 'Neurology',
     7: 'Gynecology',
     8: 'Ophthalmology',
     9: 'ENT',
