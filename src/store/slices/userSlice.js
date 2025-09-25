@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { saveOTPResponse, getOTPResponse, clearOTPData } from '../../utils/otpStorage';
@@ -407,76 +407,81 @@ export const selectIsSaving = (state) => state.user.isSaving;
 export const selectUserError = (state) => state.user.error;
 export const selectUserSaveError = (state) => state.user.saveError;
 
-// Helper selector to get formatted user data for display
-export const selectFormattedUserData = (state) => {
-  const { patientData, userProfile, otpResponse } = state.user;
-  
-  // Try multiple fallback sources
-  let name = 'User';
-  let phone = '';
-  let email = '';
-  let patientId = null;
-  let isLoggedIn = false;
-  let profileImage = null;
-  
-  // 1. Try patient data first
-  if (patientData) {
-    name = patientData.name || patientData.patient_name || 'User';
-    phone = patientData.phone_number || patientData.phone || '';
-    email = patientData.email || '';
-    patientId = patientData.id || patientData.patient_unique_id;
-    isLoggedIn = true;
+// Helper selector to get formatted user data for display (memoized)
+export const selectFormattedUserData = createSelector(
+  [
+    (state) => state.user.patientData,
+    (state) => state.user.userProfile,
+    (state) => state.user.otpResponse,
+  ],
+  (patientData, userProfile, otpResponse) => {
+    // Try multiple fallback sources
+    let name = 'User';
+    let phone = '';
+    let email = '';
+    let patientId = null;
+    let isLoggedIn = false;
+    let profileImage = null;
     
-    // Handle profile image with base URL
-    if (patientData.profile_image) {
-      const baseUrl = 'https://spiderdesk.asia/healto/';
-      profileImage = patientData.profile_image.startsWith('http') 
-        ? patientData.profile_image 
-        : `${baseUrl}${patientData.profile_image}`;
+    // 1. Try patient data first
+    if (patientData) {
+      name = patientData.name || patientData.patient_name || 'User';
+      phone = patientData.phone_number || patientData.phone || '';
+      email = patientData.email || '';
+      patientId = patientData.id || patientData.patient_unique_id;
+      isLoggedIn = true;
+      
+      // Handle profile image with base URL
+      if (patientData.profile_image) {
+        const baseUrl = 'https://spiderdesk.asia/healto/';
+        profileImage = patientData.profile_image.startsWith('http') 
+          ? patientData.profile_image 
+          : `${baseUrl}${patientData.profile_image}`;
+      }
     }
-  }
-  // 2. Try user profile data
-  else if (userProfile) {
-    name = userProfile.name || userProfile.patient_name || 'User';
-    phone = userProfile.phone_number || userProfile.phone || '';
-    email = userProfile.email || '';
-    patientId = userProfile.id || userProfile.patient_unique_id;
-    isLoggedIn = true;
+    // 2. Try user profile data
+    else if (userProfile) {
+      name = userProfile.name || userProfile.patient_name || 'User';
+      phone = userProfile.phone_number || userProfile.phone || '';
+      email = userProfile.email || '';
+      patientId = userProfile.id || userProfile.patient_unique_id;
+      isLoggedIn = true;
+      
+      // Handle profile image with base URL
+      if (userProfile.profile_image) {
+        const baseUrl = 'https://spiderdesk.asia/healto/';
+        profileImage = userProfile.profile_image.startsWith('http') 
+          ? userProfile.profile_image 
+          : `${baseUrl}${userProfile.profile_image}`;
+      }
+    }
+    // 3. Try OTP response data
+    else if (otpResponse && otpResponse.data) {
+      name = otpResponse.data.name || otpResponse.data.patient_name || 'User';
+      phone = otpResponse.data.phone_number || otpResponse.data.phone || '';
+      email = otpResponse.data.email || '';
+      patientId = otpResponse.data.id || otpResponse.data.patient_unique_id;
+      isLoggedIn = true;
+      
+      // Handle profile image with base URL
+      if (otpResponse.data.profile_image) {
+        const baseUrl = 'https://spiderdesk.asia/healto/';
+        profileImage = otpResponse.data.profile_image.startsWith('http') 
+          ? otpResponse.data.profile_image 
+          : `${baseUrl}${otpResponse.data.profile_image}`;
+      }
+    }
     
-    // Handle profile image with base URL
-    if (userProfile.profile_image) {
-      const baseUrl = 'https://spiderdesk.asia/healto/';
-      profileImage = userProfile.profile_image.startsWith('http') 
-        ? userProfile.profile_image 
-        : `${baseUrl}${userProfile.profile_image}`;
-    }
+    return {
+      name,
+      phone,
+      email,
+      patientId,
+      isLoggedIn,
+      profileImage,
+    };
   }
-  // 3. Try OTP response data
-  else if (otpResponse && otpResponse.data) {
-    name = otpResponse.data.name || otpResponse.data.patient_name || 'User';
-    phone = otpResponse.data.phone_number || otpResponse.data.phone || '';
-    email = otpResponse.data.email || '';
-    patientId = otpResponse.data.id || otpResponse.data.patient_unique_id;
-    isLoggedIn = true;
-    
-    // Handle profile image with base URL
-    if (otpResponse.data.profile_image) {
-      const baseUrl = 'https://spiderdesk.asia/healto/';
-      profileImage = otpResponse.data.profile_image.startsWith('http') 
-        ? otpResponse.data.profile_image 
-        : `${baseUrl}${otpResponse.data.profile_image}`;
-    }
-  }
-  
-  return {
-    name,
-    phone,
-    email,
-    patientId,
-    isLoggedIn,
-    profileImage,
-  };
-};
+);
 
 // Utility function to log complete user slice data
 export const logUserSliceData = (state) => {

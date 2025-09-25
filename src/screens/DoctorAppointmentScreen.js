@@ -293,6 +293,8 @@ const clinic_id = doctorData?.clinic_id;
               token: slot.token,
               is_booked: slot.is_booked,
               status: slot.status,
+              amount: slot.amount,
+              delay_time: slot.delay_time,
               raw_slot: slot
             });
           });
@@ -307,7 +309,8 @@ const clinic_id = doctorData?.clinic_id;
             token: slot.token,
             isBooked: slot.is_booked,
             status: slot.status,
-            amount: slot.amount  // Include the amount field
+            amount: slot.amount,  // Include the amount field
+            delay_time: slot.delay_time  // Include the delay_time field
           }));
         
         console.log('✅ FILTERED AVAILABLE SLOTS (for UI):');
@@ -322,7 +325,8 @@ const clinic_id = doctorData?.clinic_id;
             token: slot.token,
             isBooked: slot.isBooked,
             status: slot.status,
-            amount: slot.amount
+            amount: slot.amount,
+            delay_time: slot.delay_time
           });
         });
         
@@ -1126,6 +1130,7 @@ const clinic_id = doctorData?.clinic_id;
                       isBooked: slot.isBooked,
                       status: slot.status,
                       amount: slot.amount,
+                      delay_time: slot.delay_time,
                       index: actualIndex
                     });
                     
@@ -1182,7 +1187,8 @@ const clinic_id = doctorData?.clinic_id;
                             - {formatTime(slot.endTime)}
                           </Text>
                         )}
-                      </TouchableOpacity>
+                       
+                    </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -1501,6 +1507,27 @@ const styles = StyleSheet.create({
   },
   selectedTimeText: {
     color: '#FFFFFF',
+  },
+  delayTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: wp('1%'),
+    justifyContent: 'center',
+  },
+  delayTimeIcon: {
+    marginRight: wp('1%'),
+  },
+  delayTimeText: {
+    fontSize: wp('2.5%'),
+    fontFamily: PoppinsFonts.Medium,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  selectedDelayTimeText: {
+    color: '#FFFFFF',
+  },
+  passedDelayTimeText: {
+    color: '#FF6B6B',
   },
   reasonInput: {
     borderWidth: 1,

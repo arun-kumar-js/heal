@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { OTP_URL, basicAuth } from '../config/config.js';
 import Toast from 'react-native-toast-message';
@@ -30,8 +30,10 @@ const OTP_LENGTH = 4;
 
 const OTPScreen = () => {
   const [otp, setOtp] = useState(['', '', '', '']);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const inputs = useRef([]);
   const navigation = useNavigation();
+  const route = useRoute();
   const dispatch = useDispatch();
 
   // Function to retrieve OTP response from AsyncStorage
@@ -43,6 +45,32 @@ const OTPScreen = () => {
   const clearStoredOTPResponse = async () => {
     return await clearOTPData();
   };
+
+  // Load phone number from stored OTP response or route params on component mount
+  useEffect(() => {
+    const loadPhoneNumber = async () => {
+      try {
+        // First try to get from route params
+        const phoneFromParams = route.params?.phoneNumber || route.params?.phone_number;
+        if (phoneFromParams) {
+          setPhoneNumber(phoneFromParams);
+          console.log('📱 Loaded phone number from route params:', phoneFromParams);
+          return;
+        }
+        
+        // Fallback: try to get from stored OTP response
+        const storedResponse = await getStoredOTPResponse();
+        if (storedResponse && storedResponse.phone_number) {
+          setPhoneNumber(storedResponse.phone_number);
+          console.log('📱 Loaded phone number from stored OTP response:', storedResponse.phone_number);
+        }
+      } catch (error) {
+        console.error('Error loading phone number:', error);
+      }
+    };
+    
+    loadPhoneNumber();
+  }, [route.params]);
 
   const handleChange = (text, index) => {
     if (/^[0-9]?$/.test(text)) {
@@ -77,15 +105,20 @@ const OTPScreen = () => {
     console.log('OTP URL:', OTP_URL);
 
     try {
+      const requestData = {
+        phone_number: phoneNumber,
+        otp: enteredOtp,
+      };
+      
+      console.log('📱 OTP Verification Request Data:', requestData);
+      
       const response = await fetch(OTP_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: basicAuth,
         },
-        body: JSON.stringify({
-          otp: enteredOtp,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       console.log('Response status:', response.status);

@@ -58,12 +58,15 @@ const BookingDetailsScreen = ({ navigation, route }) => {
   const [fullName, setFullName] = useState(userData?.name || '');
   const [mobileNumber, setMobileNumber] = useState(contactInfo?.mobile || userData?.mobile || '');
   const [email, setEmail] = useState(contactInfo?.email || userData?.email || '');
+  const [gender, setGender] = useState(userData?.gender || '');
+  const [age, setAge] = useState(userData?.age || '');
   const [reasonForVisit, setReasonForVisit] = useState(
     reason || "I've been experiencing frequent chest discomfort, occasional shortness of breath, and unusual fatigue even during light activity."
   );
   const [isReasonEditable, setIsReasonEditable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mobileError, setMobileError] = useState('');
+  const [mobileValidationState, setMobileValidationState] = useState('neutral'); // 'neutral', 'valid', 'invalid'
 
   // Initialize Redux state with route params
   useEffect(() => {
@@ -176,11 +179,23 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     // Clear previous error
     setMobileError('');
     
-    // Validate the mobile number
-    if (formattedText.length > 0) {
+    // Update validation state based on input
+    if (formattedText.length === 0) {
+      setMobileValidationState('neutral');
+    } else if (formattedText.length === 10) {
       const validation = validateMobileNumber(formattedText);
-      if (!validation.isValid) {
+      if (validation.isValid) {
+        setMobileValidationState('valid');
+        setMobileError('');
+      } else {
+        setMobileValidationState('invalid');
         setMobileError(validation.error);
+      }
+    } else {
+      setMobileValidationState('neutral');
+      // Show helpful message for incomplete numbers
+      if (formattedText.length < 10) {
+        setMobileError(`${formattedText.length}/10 digits entered`);
       }
     }
   };
@@ -227,6 +242,17 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     if (!email.trim()) {
       errors.push('Please enter your email');
     }
+    if (!gender.trim()) {
+      errors.push('Please select your gender');
+    }
+    if (!age.trim()) {
+      errors.push('Please enter your age');
+    } else {
+      const ageNum = parseInt(age.trim());
+      if (isNaN(ageNum) || ageNum < 1 || ageNum > 120) {
+        errors.push('Please enter a valid age (1-120 years)');
+      }
+    }
     if (!doctor?.id) {
       errors.push('Doctor information is missing');
     }
@@ -259,7 +285,9 @@ const BookingDetailsScreen = ({ navigation, route }) => {
     const personalInfo = {
       fullName: fullName.trim(),
       mobileNumber: mobileNumber.trim(),
-      email: email.trim()
+      email: email.trim(),
+      gender: gender.trim(),
+      age: age.trim()
     };
     
     dispatch(setPersonalInfo(personalInfo));
@@ -325,11 +353,21 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         appointment_date: formattedDate,
         mobile_number: mobileNumber.trim(),
         email: email.trim(),
+        gender: gender.trim(),
+        age: age.trim() ? parseInt(age.trim()) : null,
         reason: reasonForVisit.trim(),
         payment_amount: appointmentAmount // Include the amount from time slot
       };
 
       console.log('📤 BOOKING APPOINTMENT:', appointmentData);
+      console.log('👤 PATIENT INFO DEBUG:', {
+        full_name: appointmentData.full_name,
+        mobile_number: appointmentData.mobile_number,
+        email: appointmentData.email,
+        gender: appointmentData.gender,
+        age: appointmentData.age,
+        age_type: typeof appointmentData.age
+      });
       console.log('💰 PAYMENT AMOUNT DEBUG:', {
         selectedTimeSlotAmount: selectedTimeSlot?.amount,
         reduxAmount: appointmentDetails.formData.amount,
@@ -347,22 +385,32 @@ const BookingDetailsScreen = ({ navigation, route }) => {
 
       if (result) {
         console.log('Appointment booked successfully:', result);
-        // Navigate to booking confirm screen
-        navigation.navigate('BookingConfirm', {
-          appointmentData: result,
-          doctor: doctor,
-          selectedDate: selectedDate,
-          selectedTime: selectedTime,
-          selectedTimeSlot: selectedTimeSlot,
-          reason: reasonForVisit,
-          token: randomToken,
-          personalInfo: {
-            fullName,
-            mobileNumber,
-            email
-          }
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'BookingConfirm',
+              params: {
+                appointmentData: result,
+                doctor,
+                selectedDate,
+                selectedTime,
+                selectedTimeSlot,
+                reason: reasonForVisit,
+                token: randomToken,
+                personalInfo: {
+                  fullName,
+                  mobileNumber,
+                  email,
+                  gender,
+                  age
+                }
+              }
+            }
+          ]
         });
       }
+      
     } catch (error) {
       console.error('Booking error:', error);
       console.log('Error details:', error.message || 'Something went wrong. Please try again.');
@@ -476,7 +524,7 @@ const BookingDetailsScreen = ({ navigation, route }) => {
 
         {/* Personal Information Section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={styles.sectionTitle}>Patient Information</Text>
         </View>
         
         {/* Full Name Card */}
@@ -501,19 +549,27 @@ const BookingDetailsScreen = ({ navigation, route }) => {
         </View>
 
         {/* Mobile Number Card */}
-
         <View style={styles.inputCard}>
           <Text style={styles.inputLabel}>Mobile Number</Text>
-          <View style={styles.inputContainer}>
+          <View style={[
+            styles.inputContainer, 
+            mobileValidationState === 'valid' && styles.inputContainerValid,
+            mobileValidationState === 'invalid' && styles.inputContainerInvalid
+          ]}>
             <View style={styles.inputIcon}>
-            <Image
+              <Image
                 source={require('../Assets/Images/Phone.png')}
-                style={{ width: 16, height: 16, tintColor: '#0D6EFD' }}
+                style={{ 
+                  width: 16, 
+                  height: 16, 
+                  tintColor: mobileValidationState === 'valid' ? '#28a745' : 
+                           mobileValidationState === 'invalid' ? '#dc3545' : '#0D6EFD'
+                }}
                 resizeMode="contain"
               />
             </View>
             <TextInput
-              style={[styles.input, mobileError && styles.inputError]}
+              style={styles.input}
               value={mobileNumber}
               onChangeText={handleMobileNumberChange}
               placeholder="Enter your mobile number"
@@ -521,10 +577,37 @@ const BookingDetailsScreen = ({ navigation, route }) => {
               keyboardType="phone-pad"
               maxLength={10}
             />
-            {mobileError ? (
-              <Text style={styles.errorText}>{mobileError}</Text>
-            ) : null}
+            {mobileValidationState === 'valid' && (
+              <View style={styles.validationIcon}>
+                <Icon name="check-circle" size={16} color="#28a745" />
+              </View>
+            )}
+            {mobileValidationState === 'invalid' && (
+              <View style={styles.validationIcon}>
+                <Icon name="exclamation-circle" size={16} color="#dc3545" />
+              </View>
+            )}
           </View>
+          {mobileError && (
+            <View style={styles.errorContainer}>
+              <Text style={[
+                styles.errorText,
+                mobileValidationState === 'neutral' && styles.progressText
+              ]}>
+                {mobileError}
+              </Text>
+            </View>
+          )}
+          {mobileValidationState === 'neutral' && mobileNumber.length > 0 && mobileNumber.length < 10 && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[
+                  styles.progressFill, 
+                  { width: `${(mobileNumber.length / 10) * 100}%` }
+                ]} />
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Email Card */}
@@ -547,6 +630,54 @@ const BookingDetailsScreen = ({ navigation, route }) => {
               keyboardType="email-address"
               autoCapitalize="none"
             />
+          </View>
+        </View>
+
+        {/* Gender and Age Row */}
+        <View style={styles.rowContainer}>
+          {/* Gender Card */}
+          <View style={styles.halfInputCard}>
+            <Text style={styles.inputLabel}>Gender</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Image
+                  source={require('../Assets/Images/User.png')}
+                  style={{ width: 16, height: 16, tintColor: '#0D6EFD' }}
+                  resizeMode="contain"
+                />
+              </View>
+              <TextInput
+                style={styles.input}
+                value={gender}
+                onChangeText={setGender}
+                placeholder="Male/Female/Other"
+                placeholderTextColor="#999"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          {/* Age Card */}
+          <View style={styles.halfInputCard}>
+            <Text style={styles.inputLabel}>Age</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Image
+                  source={require('../Assets/Images/User.png')}
+                  style={{ width: 16, height: 16, tintColor: '#0D6EFD' }}
+                  resizeMode="contain"
+                />
+              </View>
+              <TextInput
+                style={styles.input}
+                value={age}
+                onChangeText={setAge}
+                placeholder="Enter age"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                maxLength={3}
+              />
+            </View>
           </View>
         </View>
 
@@ -621,11 +752,12 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: wp('2%'),
+    color:"white"
   },
   headerTitle: {
     fontSize: wp('5%'),
     fontFamily: PoppinsFonts.SemiBold,
-    color: '#333',
+    color: 'white',
   },
   placeholder: {
     width: wp('10%'),
@@ -763,11 +895,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  rowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp('1.5%'),
+  },
+  halfInputCard: {
+    backgroundColor: '#fff',
+    borderRadius: wp('3%'),
+    padding: wp('4%'),
+    flex: 1,
+    marginHorizontal: wp('1%'),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   sectionTitle: {
     fontSize: wp('4.5%'),
     fontFamily: PoppinsFonts.SemiBold,
     color: '#333',
-    marginBottom: hp('1%'),
+   
   },
   heading: {
     fontSize: 14,
@@ -788,8 +937,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderRadius: wp('2%'),
     paddingHorizontal: wp('3%'),
-   // paddingVertical: hp('1%'),
-marginTop: hp('1%'),
+    paddingVertical: hp('1.2%'),
+    marginTop: hp('1%'),
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   inputIcon: {
     marginRight: wp('3%'),
@@ -811,16 +962,47 @@ marginTop: hp('1%'),
     backgroundColor: '#f0f0f0',
     color: '#666',
   },
-  inputError: {
+  inputContainerValid: {
+    borderColor: '#28a745',
+    borderWidth: 1,
+    backgroundColor: '#f8fff8',
+  },
+  inputContainerInvalid: {
     borderColor: '#dc3545',
     borderWidth: 1,
+    backgroundColor: '#fff8f8',
+  },
+  validationIcon: {
+    marginLeft: wp('2%'),
+  },
+  errorContainer: {
+    marginTop: hp('0.5%'),
+    paddingHorizontal: wp('1%'),
   },
   errorText: {
     color: '#dc3545',
-    fontSize: wp('3.5%'),
+    fontSize: wp('3.2%'),
     fontFamily: PoppinsFonts.Regular,
-    marginTop: hp('0.5%'),
-    marginLeft: wp('2%'),
+  },
+  progressText: {
+    color: '#666',
+    fontSize: wp('3%'),
+    fontFamily: PoppinsFonts.Medium,
+  },
+  progressContainer: {
+    marginTop: hp('0.8%'),
+    paddingHorizontal: wp('1%'),
+  },
+  progressBar: {
+    height: 3,
+    backgroundColor: '#e9ecef',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#0D6EFD',
+    borderRadius: 2,
   },
   buttonContainer: {
     flexDirection: 'row',

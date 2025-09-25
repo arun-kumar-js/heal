@@ -63,6 +63,10 @@ const BottomTap = () => {
           bottom: 0,
           left: 0,
           right: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          shadowOffset: { width: 0, height: 0 },
+          shadowRadius: 0,
         },
         tabBarBackground: () => (
           <LinearGradient
@@ -122,11 +126,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginHorizontal: wp('4%'),
     marginBottom: hp('2%'),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
   },
   iconContainer: {
     alignItems: 'center',

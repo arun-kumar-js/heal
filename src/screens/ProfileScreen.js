@@ -23,7 +23,6 @@ import {
 // Removed fallback storage imports - only using Redux now
 import { PoppinsFonts } from '../config/fonts';
 import { updatePatientProfile, validatePatientData } from '../services/patientUpdateApi';
-import { uploadProfileImage, uploadProfileImageAlternative } from '../services/profileImageApi';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectPatientId, selectPatientData, selectFormattedUserData, loadUserOTPResponse, updatePatientData, fetchUserProfile, selectUser } from '../store/slices/userSlice';
 import { formatMobileInput, validateMobileNumber } from '../utils/mobileValidation';
@@ -41,6 +40,10 @@ const ProfileScreen = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [gender, setGender] = useState('');
+  const [age, setAge] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [dob, setDob] = useState('');
+  const [address, setAddress] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -75,21 +78,49 @@ const ProfileScreen = ({ navigation }) => {
       const newPhone = patientData.phone_number || patientData.phone || '';
       const newEmail = patientData.email || '';
       const newGender = patientData.gender || '';
+      const newAge = patientData.age ? patientData.age.toString() : '';
+      const newBloodGroup = patientData.blood_group || '';
+      const newDob = patientData.dob || '';
+      const newAddress = patientData.address || '';
       
       // Only update if values have actually changed to prevent flicker
       if (name !== newName) setName(newName);
       if (phoneNumber !== newPhone) setPhoneNumber(newPhone);
       if (email !== newEmail) setEmail(newEmail);
       if (gender !== newGender) setGender(newGender);
+      if (age !== newAge) setAge(newAge);
+      if (bloodGroup !== newBloodGroup) setBloodGroup(newBloodGroup);
+      if (dob !== newDob) setDob(newDob);
+      if (address !== newAddress) setAddress(newAddress);
       
       console.log('✅ Form fields synced with Redux data:', {
         name: newName,
         phone: newPhone,
         email: newEmail,
-        gender: newGender
+        gender: newGender,
+        age: newAge,
+        bloodGroup: newBloodGroup,
+        dob: newDob,
+        address: newAddress
       });
     }
   }, [patientData]);
+
+  // Helper function to format DOB for display
+  const formatDOB = (dobString) => {
+    if (!dobString) return '';
+    try {
+      const date = new Date(dobString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting DOB:', error);
+      return dobString;
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -161,6 +192,9 @@ const ProfileScreen = ({ navigation }) => {
       phone: phoneNumber.trim(),
       email: email.trim(),
       gender: gender,
+      age: age.trim(),
+      blood_group: bloodGroup.trim(),
+      address: address.trim(),
     };
 
     const validation = validatePatientData(formData);
@@ -185,6 +219,14 @@ const ProfileScreen = ({ navigation }) => {
         phone: formData.phone,
         email: formData.email,
         gender: formData.gender,
+        dob: formData.dob,
+        blood_group: formData.blood_group,
+        address: formData.address,
+        profile_image: profileImageUri ? {
+          uri: profileImageUri,
+          type: 'image/jpeg',
+          name: 'profile_image.jpg'
+        } : null, // Pass profile image as file object if exists
       };
 
       console.log('📝 Data to be sent to API:', apiData);
@@ -196,24 +238,25 @@ const ProfileScreen = ({ navigation }) => {
         console.log('✅ Profile updated successfully via API');
         console.log('📝 API Response data:', result.data);
         
-        // Use the complete API response data instead of just form data
+        // Use the patient data from API response (API returns {message, patient: {...}})
+        const patientData = result.data.patient || result.data;
         const updatedPatientData = {
-          ...result.data, // Use complete API response data
+          ...patientData, // Use patient data from API response
           // Ensure we have the correct field mappings
-          id: result.data.id,
-          patient_unique_id: result.data.patient_unique_id,
-          name: result.data.name,
-          phone_number: result.data.phone_number,
-          email: result.data.email,
-          gender: result.data.gender,
-          dob: result.data.dob,
-          age: result.data.age,
-          blood_group: result.data.blood_group,
-          address: result.data.address,
-          profile_image: result.data.profile_image,
-          status: result.data.status,
-          created_at: result.data.created_at,
-          updated_at: result.data.updated_at,
+          id: patientData.id,
+          patient_unique_id: patientData.patient_unique_id,
+          name: patientData.name,
+          phone_number: patientData.phone_number,
+          email: patientData.email,
+          gender: patientData.gender,
+          dob: patientData.dob,
+          age: patientData.age,
+          blood_group: patientData.blood_group,
+          address: patientData.address,
+          profile_image: patientData.profile_image,
+          status: patientData.status,
+          created_at: patientData.created_at,
+          updated_at: patientData.updated_at,
           // Add timestamp for tracking
           lastUpdated: new Date().toISOString(),
         };
@@ -227,12 +270,18 @@ const ProfileScreen = ({ navigation }) => {
         setPhoneNumber(formData.phone);
         setEmail(formData.email);
         setGender(formData.gender);
+        setDob(formData.dob);
+        setBloodGroup(formData.blood_group);
+        setAddress(formData.address);
         
         console.log('✅ Form data refreshed with updated values:', {
           name: formData.name,
           phone: formData.phone,
           email: formData.email,
-          gender: formData.gender
+          gender: formData.gender,
+          dob: formData.dob,
+          blood_group: formData.blood_group,
+          address: formData.address,
         });
         
         Alert.alert(
@@ -446,10 +495,19 @@ const ProfileScreen = ({ navigation }) => {
           
           if (asset.uri) {
             console.log('Image selected:', asset.uri);
+            
+            // Create complete file object
+            const imageFile = {
+              uri: asset.uri,
+              type: asset.type || 'image/jpeg',
+              name: asset.fileName || 'profile_image.jpg'
+            };
+            
+            // Set profile image URI for UI display
             setProfileImageUri(asset.uri);
             
-            // Upload image to API
-            await uploadImageToAPI(asset.uri);
+            // Upload image to API with complete file information
+            await uploadImageToAPI(imageFile);
           } else {
             console.log('No URI found in selected asset');
             Alert.alert('Error', 'Failed to get image URI');
@@ -465,8 +523,8 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  // Upload image to API
-  const uploadImageToAPI = async (imageUri) => {
+  // Upload image to API using the updated patientUpdateApi
+  const uploadImageToAPI = async (imageFile) => {
     if (!patientId) {
       Alert.alert('Error', 'Patient ID not found. Please login again.');
       return;
@@ -474,44 +532,58 @@ const ProfileScreen = ({ navigation }) => {
 
     try {
       setUploadingImage(true);
-      console.log('Uploading profile image...');
+      console.log('Uploading profile image via patient update API...');
       
-      // Try primary upload method first
-      let result = await uploadProfileImage(patientId, imageUri);
-      
-      // If primary method fails, try alternative
-      if (!result.success) {
-        console.log('Primary upload failed, trying alternative method...');
-        result = await uploadProfileImageAlternative(patientId, imageUri);
-      }
+      // Prepare data for API with image file
+      const apiData = {
+        patient_id: patientId,
+        name: name.trim(),
+        phone: phoneNumber.trim(),
+        email: email.trim(),
+        gender: gender,
+        dob: dob.trim(),
+        blood_group: bloodGroup.trim(),
+        address: address.trim(),
+        profile_image: imageFile, // Pass complete file object
+      };
 
+      console.log('📝 Uploading profile data with image:', { ...apiData, profile_image: '[Image File Object]' });
+
+      // Call the updated API that handles file uploads
+      const result = await updatePatientProfile(apiData);
+      
       if (result.success) {
-        console.log('Profile image uploaded successfully');
-        Alert.alert('Success', 'Profile picture updated successfully!');
+        console.log('✅ Profile and image updated successfully via API');
+        console.log('📝 API Response data:', result.data);
         
-        // Update Redux store with new image URL if provided
-        if (result.data && result.data.profile_image) {
-          const updatedPatientData = {
-            ...patientData,
-            profile_image: result.data.profile_image,
-            lastUpdated: new Date().toISOString(),
-          };
-          dispatch(updatePatientData(updatedPatientData));
-        }
+        // Update Redux store with patient data from API response
+        const patientData = result.data.patient || result.data;
+        const updatedPatientData = {
+          ...patientData,
+          id: patientData.id,
+          patient_unique_id: patientData.patient_unique_id,
+          name: patientData.name,
+          phone_number: patientData.phone_number,
+          email: patientData.email,
+          gender: patientData.gender,
+          dob: patientData.dob,
+          age: patientData.age,
+          blood_group: patientData.blood_group,
+          address: patientData.address,
+          profile_image: patientData.profile_image,
+          status: patientData.status,
+          created_at: patientData.created_at,
+          updated_at: patientData.updated_at,
+          lastUpdated: new Date().toISOString(),
+        };
+        
+        dispatch(updatePatientData(updatedPatientData));
+        console.log('✅ Redux store updated with complete API response data');
+        
+        Alert.alert('Success', 'Profile picture and data updated successfully!');
       } else {
-        console.log('Failed to upload profile image:', result.error);
-        
-        // Since server doesn't have image upload endpoints, just save locally
-        Alert.alert(
-          'Image Saved Locally', 
-          'Your profile picture has been updated! The image is saved on your device. Server upload is not available at this time.',
-          [
-            { text: 'OK', onPress: () => {
-              // Image is already saved locally in profileImageUri state
-              console.log('Image saved locally, user can see it in the UI');
-            }}
-          ]
-        );
+        console.log('❌ Failed to upload profile image:', result.message);
+        Alert.alert('Upload Failed', result.message || 'Failed to upload profile picture. Please try again.');
       }
     } catch (error) {
       console.error('Error uploading profile image:', error);
@@ -703,6 +775,85 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </TouchableOpacity>
           </View>
+
+          {/* Age */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Age</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Icon name="calendar-alt" size={16} color="#0D6EFD" />
+              </View>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputReadOnly]}
+                value={age}
+                onChangeText={setAge}
+                placeholder="Enter your age"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                editable={isEditing}
+                maxLength={3}
+              />
+            </View>
+          </View>
+
+          {/* Blood Group */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Blood Group</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Icon name="heartbeat" size={16} color="#0D6EFD" />
+              </View>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputReadOnly]}
+                value={bloodGroup}
+                onChangeText={setBloodGroup}
+                placeholder="Enter blood group (e.g., A+)"
+                placeholderTextColor="#999"
+                editable={isEditing}
+                autoCapitalize="characters"
+                maxLength={3}
+              />
+            </View>
+          </View>
+
+          {/* Date of Birth */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Date of Birth</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Icon name="birthday-cake" size={16} color="#0D6EFD" />
+              </View>
+              <Text style={[styles.input, !isEditing && styles.inputReadOnly]}>
+                {formatDOB(dob)}
+              </Text>
+              {!isEditing && dob && (
+                <Text style={styles.dobRawText}>
+                  {dob}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Address */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Address</Text>
+            <View style={styles.inputContainer}>
+              <View style={styles.inputIcon}>
+                <Icon name="map-marker-alt" size={16} color="#0D6EFD" />
+              </View>
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputReadOnly]}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Enter your address"
+                placeholderTextColor="#999"
+                editable={isEditing}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
         </View>
 
         </ScrollView>
@@ -838,6 +989,13 @@ const styles = StyleSheet.create({
   },
   inputReadOnly: {
     color: '#666',
+  },
+  dobRawText: {
+    fontSize: wp('2.8%'),
+    color: '#999',
+    fontFamily: PoppinsFonts.Regular,
+    marginTop: wp('1%'),
+    fontStyle: 'italic',
   },
   buttonContainer: {
     paddingHorizontal: wp('5%'),

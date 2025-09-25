@@ -43,7 +43,7 @@ const Login = ({ navigation }) => {
         text2: result.message,
         visibilityTime: 1000,
         onHide: () => {
-          navigation.navigate('OtpPage');
+          navigation.navigate('OtpPage', { phoneNumber: mobileNumber });
         },
       });
     } else {
