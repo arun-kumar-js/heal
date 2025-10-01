@@ -40,7 +40,6 @@ const ProfileScreen = ({ navigation }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [gender, setGender] = useState('');
-  const [age, setAge] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
   const [dob, setDob] = useState('');
   const [address, setAddress] = useState('');
@@ -78,7 +77,6 @@ const ProfileScreen = ({ navigation }) => {
       const newPhone = patientData.phone_number || patientData.phone || '';
       const newEmail = patientData.email || '';
       const newGender = patientData.gender || '';
-      const newAge = patientData.age ? patientData.age.toString() : '';
       const newBloodGroup = patientData.blood_group || '';
       const newDob = patientData.dob || '';
       const newAddress = patientData.address || '';
@@ -88,7 +86,6 @@ const ProfileScreen = ({ navigation }) => {
       if (phoneNumber !== newPhone) setPhoneNumber(newPhone);
       if (email !== newEmail) setEmail(newEmail);
       if (gender !== newGender) setGender(newGender);
-      if (age !== newAge) setAge(newAge);
       if (bloodGroup !== newBloodGroup) setBloodGroup(newBloodGroup);
       if (dob !== newDob) setDob(newDob);
       if (address !== newAddress) setAddress(newAddress);
@@ -98,7 +95,6 @@ const ProfileScreen = ({ navigation }) => {
         phone: newPhone,
         email: newEmail,
         gender: newGender,
-        age: newAge,
         bloodGroup: newBloodGroup,
         dob: newDob,
         address: newAddress
@@ -192,7 +188,7 @@ const ProfileScreen = ({ navigation }) => {
       phone: phoneNumber.trim(),
       email: email.trim(),
       gender: gender,
-      age: age.trim(),
+      dob: dob.trim(),
       blood_group: bloodGroup.trim(),
       address: address.trim(),
     };
@@ -776,25 +772,6 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Age */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Age</Text>
-            <View style={styles.inputContainer}>
-              <View style={styles.inputIcon}>
-                <Icon name="calendar-alt" size={16} color="#0D6EFD" />
-              </View>
-              <TextInput
-                style={[styles.input, !isEditing && styles.inputReadOnly]}
-                value={age}
-                onChangeText={setAge}
-                placeholder="Enter your age"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-                editable={isEditing}
-                maxLength={3}
-              />
-            </View>
-          </View>
 
           {/* Blood Group */}
           <View style={styles.fieldContainer}>
@@ -823,14 +800,16 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.inputIcon}>
                 <Icon name="birthday-cake" size={16} color="#0D6EFD" />
               </View>
-              <Text style={[styles.input, !isEditing && styles.inputReadOnly]}>
-                {formatDOB(dob)}
-              </Text>
-              {!isEditing && dob && (
-                <Text style={styles.dobRawText}>
-                  {dob}
-                </Text>
-              )}
+              <TextInput
+                style={[styles.input, !isEditing && styles.inputReadOnly]}
+                value={dob}
+                onChangeText={setDob}
+                placeholder="YYYY-MM-DD (e.g., 1990-01-15)"
+                placeholderTextColor="#999"
+                editable={isEditing}
+                keyboardType="default"
+                maxLength={10}
+              />
             </View>
           </View>
 

@@ -26,6 +26,8 @@ import AppointmentDetailsScreen from './src/screens/AppointmentDetailsScreen';
 import HospitalListByCategoryScreen from './src/screens/HospitalListByCategoryScreen';
 import Category from './src/screens/Category';
 import DoctorBySpc from './src/screens/DoctorBySpc';
+import FAQScreen from './src/screens/FAQScreen';
+import SupportContentScreen from './src/screens/SupportContentScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -234,6 +236,16 @@ export default function App() {
         <Stack.Screen
           name="DoctorBySpc"
           component={DoctorBySpc}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FAQScreen"
+          component={FAQScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SupportContentScreen"
+          component={SupportContentScreen}
           options={{ headerShown: false }}
         />
 

@@ -16,8 +16,8 @@ export const PAYMENT_UPDATE_URL = BASE_URL + 'payment-update';
 export const DOCTOR_DETAILS_URL = BASE_URL + 'doctorDetails';
 
 // Google Maps API Keys
-export const GOOGLE_MAPS_ANDROID_API_KEY = 'AIzaSyAXoi7Byq8PhEN2TusAaNRnnMBnOHzopJQ';
-export const GOOGLE_MAPS_IOS_API_KEY = 'AIzaSyDhaELwftxhvXCSBZPdkOjHN_F3guOVDic';
+export const GOOGLE_MAPS_ANDROID_API_KEY = 'AIzaSyBnM5sYOBSnpqlEPfeDhUUdp5rAA2MStU0';
+export const GOOGLE_MAPS_IOS_API_KEY = 'AIzaSyDRi51-Uevq7HisFfsaIrnVFzmPNL4w1O4';
 
 // Firebase Configuration
 export const FIREBASE_PROJECT_ID = 'com-healto';

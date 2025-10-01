@@ -18,8 +18,14 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import { PoppinsFonts } from '../config/fonts';
+import { useSelector } from 'react-redux';
+import { selectPatientId } from '../store/slices/userSlice';
+import { deletePatientAccount } from '../services/deletePatientApi';
+import { getHelpContent, getTermsConditions, getPrivacyPolicy, getContactSupport } from '../services/supportApi';
 
 const Settings = ({ navigation }) => {
+  const patientId = useSelector(selectPatientId);
+
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
@@ -49,6 +55,75 @@ const Settings = ({ navigation }) => {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    if (!patientId) {
+      Alert.alert('Error', 'Patient ID not found. Please login again.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Show a second confirmation for account deletion
+            Alert.alert(
+              'Final Confirmation',
+              'This will permanently delete your account and all associated data. Are you absolutely sure?',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                },
+                {
+                  text: 'Yes, Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      console.log('🗑️ Deleting account for patient ID:', patientId);
+                      
+                      // Call API to delete account
+                      const result = await deletePatientAccount(patientId);
+                      
+                      if (result.success) {
+                        console.log('✅ Account deleted successfully via API');
+                        
+                        // Clear all local data
+                        await AsyncStorage.clear();
+                        console.log('✅ Cleared all local data');
+                        
+                        // Navigate to login screen
+                        navigation.reset({
+                          index: 0,
+                          routes: [{ name: 'Login' }],
+                        });
+                        
+                        Alert.alert('Success', 'Your account has been deleted successfully.');
+                      } else {
+                        console.log('❌ Failed to delete account:', result.message);
+                        Alert.alert('Error', result.message || 'Failed to delete account. Please try again.');
+                      }
+                    } catch (error) {
+                      console.error('❌ Error during account deletion:', error);
+                      Alert.alert('Error', 'Failed to delete account. Please try again.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const settingsSections = [
     {
       title: 'Account',
@@ -62,36 +137,33 @@ const Settings = ({ navigation }) => {
       ],
     },
     {
-      title: 'Appointments',
-      items: [
-        {
-          id: 'history',
-          title: 'Appointment History\'s',
-          icon: 'calendar-alt',
-          onPress: () => console.log('Appointment History'),
-        },
-      ],
-    },
-    {
       title: 'Support',
       items: [
         {
           id: 'help',
           title: 'Help Centre',
           icon: 'headphones',
-          onPress: () => console.log('Help Centre'),
+          onPress: () => navigation.navigate('SupportContentScreen', {
+            title: 'Help Centre',
+            apiFunction: getHelpContent,
+            type: 'help'
+          }),
         },
         {
           id: 'faq',
           title: 'FAQs',
           icon: 'question-circle',
-          onPress: () => console.log('FAQs'),
+          onPress: () => navigation.navigate('FAQScreen'),
         },
         {
           id: 'contact',
           title: 'Contact Support',
           icon: 'phone',
-          onPress: () => console.log('Contact Support'),
+          onPress: () => navigation.navigate('SupportContentScreen', {
+            title: 'Contact Support',
+            apiFunction: getContactSupport,
+            type: 'contact'
+          }),
         },
       ],
     },
@@ -102,19 +174,21 @@ const Settings = ({ navigation }) => {
           id: 'terms',
           title: 'Terms & Condition',
           icon: 'file-alt',
-          onPress: () => console.log('Terms & Condition'),
+          onPress: () => navigation.navigate('SupportContentScreen', {
+            title: 'Terms & Conditions',
+            apiFunction: getTermsConditions,
+            type: 'terms'
+          }),
         },
         {
           id: 'privacy',
           title: 'Privacy Policy',
           icon: 'shield-alt',
-          onPress: () => console.log('Privacy Policy'),
-        },
-        {
-          id: 'contact-legal',
-          title: 'Contact Support',
-          icon: 'phone',
-          onPress: () => console.log('Contact Support'),
+          onPress: () => navigation.navigate('SupportContentScreen', {
+            title: 'Privacy Policy',
+            apiFunction: getPrivacyPolicy,
+            type: 'privacy'
+          }),
         },
       ],
     },
@@ -126,6 +200,17 @@ const Settings = ({ navigation }) => {
           title: 'Logout',
           icon: 'sign-out-alt',
           onPress: handleLogout,
+        },
+      ],
+    },
+    {
+      title: 'Delete Account',
+      items: [
+        {
+          id: 'delete-account',
+          title: 'Delete Account',
+          icon: 'trash-alt',
+          onPress: handleDeleteAccount,
         },
       ],
     },
@@ -141,12 +226,12 @@ const Settings = ({ navigation }) => {
         <Icon 
           name={item.icon} 
           size={20} 
-          color={item.id === 'logout' ? '#FF6B6B' : '#333333'} 
+          color={item.id === 'logout' || item.id === 'delete-account' ? '#FF6B6B' : '#333333'} 
           style={styles.settingIcon} 
         />
         <Text style={[
           styles.settingText,
-          item.id === 'logout' && styles.logoutText
+          (item.id === 'logout' || item.id === 'delete-account') && styles.logoutText
         ]}>
           {item.title}
         </Text>
@@ -158,11 +243,12 @@ const Settings = ({ navigation }) => {
   const renderSection = (section) => (
     <View key={section.title} style={[
       styles.section,
+      section.title === 'Delete Account' && styles.deleteAccountSection,
       section.title === 'Logout' && styles.logoutSection
     ]}>
       <View style={[
         styles.sectionCard,
-        section.title === 'Logout' && styles.logoutCard
+        (section.title === 'Logout' || section.title === 'Delete Account') && styles.logoutCard
       ]}>
         <Text style={styles.sectionTitle}>{section.title}</Text>
         {section.items.map((item, index) => 
@@ -279,7 +365,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logoutSection: {
-    marginBottom: hp('20%'), // Extra margin for logout section to ensure visibility
+    marginBottom: 10, // No margin between logout and delete account
+  },
+  deleteAccountSection: {
+    marginTop: 0, // No space above delete account section
+    marginBottom: hp('20%'), // Extra margin for delete account section to ensure visibility
   },
   logoutCard: {
     borderColor: '#FF6B6B', // Red border for logout card
